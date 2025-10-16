@@ -8,6 +8,8 @@ from agents.synthesizer_agent import SynthesizerAgent
 from agents.disruptor_agent import DisruptorAgent
 from agents.strategist_agent import StrategistAgent
 from agents.prd_generator_agent import PRDGeneratorAgent
+from agents.pain_point_agent import PainPointAgent
+from agents.trend_analysis_agent import TrendAnalysisAgent
 
 __all__ = [
     'BaseAgent',
@@ -16,6 +18,8 @@ __all__ = [
     'SynthesizerAgent',
     'DisruptorAgent',
     'StrategistAgent',
-    'PRDGeneratorAgent'
+    'PRDGeneratorAgent',
+    'PainPointAgent',
+    'TrendAnalysisAgent'
 ]
 
