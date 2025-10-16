@@ -9,6 +9,7 @@ from pathlib import Path
 from config import config
 from core.orchestrator import CreativityOrchestrator
 from core.models import Domain
+from core.web_search import get_search_engine
 
 
 def main():
@@ -157,6 +158,25 @@ def main():
                 print(f"   Recovery Attempts: {stats['total_recovery_attempts']}")
                 print(f"   Successful: {stats['successful_recoveries']}")
                 print(f"   Success Rate: {stats['recovery_success_rate']*100:.1f}%")
+            
+            # Show web search cost statistics
+            if args.use_search and config.SERPER_API_KEY:
+                try:
+                    search_engine = get_search_engine()
+                    cost_summary = search_engine.get_cost_summary(assume_free_tier=True)
+                    if cost_summary['total_searches'] > 0:
+                        print(f"\n🔍 Web Search Statistics:")
+                        print(f"   Total Searches: {cost_summary['total_searches']}")
+                        print(f"   Cost: ${cost_summary['cost_usd']:.3f} (Free Tier)")
+                        if not cost_summary['within_free_tier']:
+                            paid_cost = search_engine.get_search_cost(assume_free_tier=False)
+                            print(f"   ⚠️  Exceeded free tier limit ({cost_summary['free_tier_limit']} searches/month)")
+                            print(f"   Paid Tier Cost: ${paid_cost:.3f}")
+                        else:
+                            remaining = cost_summary['free_tier_limit'] - cost_summary['total_searches']
+                            print(f"   Remaining Free: {remaining} searches this month")
+                except Exception:
+                    pass  # Silently skip if search engine not initialized
         
         elif args.command == 'creative-loop':
             # Run full creative loop
@@ -205,6 +225,25 @@ def main():
                 error_report_path = config.REPORTS_DIR / "error_recovery_patterns.json"
                 get_error_recovery_engine().save_error_patterns(str(error_report_path))
                 print(f"   📊 Error patterns saved to: {error_report_path}")
+            
+            # Show web search cost statistics
+            if args.use_search and config.SERPER_API_KEY:
+                try:
+                    search_engine = get_search_engine()
+                    cost_summary = search_engine.get_cost_summary(assume_free_tier=True)
+                    if cost_summary['total_searches'] > 0:
+                        print(f"\n🔍 Web Search Statistics:")
+                        print(f"   Total Searches: {cost_summary['total_searches']}")
+                        print(f"   Cost: ${cost_summary['cost_usd']:.3f} (Free Tier)")
+                        if not cost_summary['within_free_tier']:
+                            paid_cost = search_engine.get_search_cost(assume_free_tier=False)
+                            print(f"   ⚠️  Exceeded free tier limit ({cost_summary['free_tier_limit']} searches/month)")
+                            print(f"   Paid Tier Cost: ${paid_cost:.3f}")
+                        else:
+                            remaining = cost_summary['free_tier_limit'] - cost_summary['total_searches']
+                            print(f"   Remaining Free: {remaining} searches this month")
+                except Exception:
+                    pass  # Silently skip if search engine not initialized
         
         elif args.command == 'export':
             # Export top ideas

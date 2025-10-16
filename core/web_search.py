@@ -32,6 +32,10 @@ class SearchResult:
 class WebSearchEngine:
     """Web search engine using Serper API"""
     
+    # Pricing constants
+    FREE_TIER_SEARCHES = 2500  # Free searches per month
+    PAID_COST_PER_SEARCH = 0.005  # $0.005 per search after free tier
+    
     def __init__(self, api_key: Optional[str] = None):
         """
         Initialize web search engine
@@ -42,6 +46,7 @@ class WebSearchEngine:
         self.api_key = api_key or config.SERPER_API_KEY
         self.base_url = "https://google.serper.dev/search"
         self.search_history: List[Dict[str, Any]] = []
+        self.total_searches = 0  # Track total searches in this session
         
         if not self.api_key:
             raise ValueError("SERPER_API_KEY not found. Please set it in your .env file")
@@ -98,6 +103,9 @@ class WebSearchEngine:
                 'query': query,
                 'num_results': len(results)
             })
+            
+            # Track total searches
+            self.total_searches += 1
             
             return results
             
@@ -228,9 +236,49 @@ class WebSearchEngine:
         """Get search history"""
         return self.search_history
     
+    def get_search_cost(self, assume_free_tier: bool = True) -> float:
+        """
+        Calculate cost of searches performed
+        
+        Args:
+            assume_free_tier: If True, assumes free tier (first 2500 searches free)
+                             If False, calculates as if all searches are paid
+        
+        Returns:
+            Cost in USD
+        """
+        if assume_free_tier:
+            # Free tier: first 2500 searches/month are free
+            return 0.0
+        else:
+            # Paid tier: $0.005 per search
+            return self.total_searches * self.PAID_COST_PER_SEARCH
+    
+    def get_cost_summary(self, assume_free_tier: bool = True) -> Dict[str, Any]:
+        """
+        Get detailed cost summary
+        
+        Args:
+            assume_free_tier: Whether to assume free tier pricing
+        
+        Returns:
+            Dictionary with cost details
+        """
+        cost = self.get_search_cost(assume_free_tier)
+        
+        return {
+            'total_searches': self.total_searches,
+            'cost_usd': cost,
+            'cost_per_search': self.PAID_COST_PER_SEARCH if not assume_free_tier else 0.0,
+            'free_tier_assumed': assume_free_tier,
+            'free_tier_limit': self.FREE_TIER_SEARCHES,
+            'within_free_tier': self.total_searches <= self.FREE_TIER_SEARCHES
+        }
+    
     def clear_history(self):
-        """Clear search history"""
+        """Clear search history and reset counters"""
         self.search_history = []
+        self.total_searches = 0
 
 
 # Global search engine instance
