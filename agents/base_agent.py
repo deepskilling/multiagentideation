@@ -15,6 +15,15 @@ from core.error_recovery import get_error_recovery_engine, ErrorType
 class BaseAgent(ABC):
     """Abstract base class for all agents"""
     
+    # Class-level token tracking (shared across all agents)
+    _total_input_tokens = 0
+    _total_output_tokens = 0
+    _api_calls = 0
+    
+    # Claude Sonnet 4.5 pricing (cross-region inference profile)
+    INPUT_TOKEN_COST = 0.003 / 1000  # $3 per 1M tokens = $0.003 per 1K
+    OUTPUT_TOKEN_COST = 0.015 / 1000  # $15 per 1M tokens = $0.015 per 1K
+    
     def __init__(self, name: str, model: str, role_description: str, enable_error_recovery: bool = True):
         self.name = name
         self.model = model
@@ -22,6 +31,11 @@ class BaseAgent(ABC):
         self.message_history = []
         self.enable_error_recovery = enable_error_recovery
         self.error_recovery_engine = get_error_recovery_engine() if enable_error_recovery else None
+        
+        # Instance-level token tracking
+        self.input_tokens = 0
+        self.output_tokens = 0
+        self.api_calls = 0
         
         # Initialize LLM clients
         self.openai_client = None
@@ -212,6 +226,22 @@ class BaseAgent(ABC):
             
             # Parse response
             response_body = json.loads(response['body'].read())
+            
+            # Track token usage
+            if 'usage' in response_body:
+                input_tokens = response_body['usage'].get('input_tokens', 0)
+                output_tokens = response_body['usage'].get('output_tokens', 0)
+                
+                # Update instance-level counters
+                self.input_tokens += input_tokens
+                self.output_tokens += output_tokens
+                self.api_calls += 1
+                
+                # Update class-level counters (shared across all agents)
+                BaseAgent._total_input_tokens += input_tokens
+                BaseAgent._total_output_tokens += output_tokens
+                BaseAgent._api_calls += 1
+            
             return response_body['content'][0]['text']
             
         except Exception as e:
@@ -269,6 +299,50 @@ class BaseAgent(ABC):
         """Save learned error patterns to file"""
         if self.error_recovery_engine:
             self.error_recovery_engine.save_error_patterns(filepath)
+    
+    @classmethod
+    def get_total_cost(cls) -> float:
+        """
+        Calculate total cost across all agents
+        
+        Returns:
+            Total cost in USD
+        """
+        input_cost = cls._total_input_tokens * cls.INPUT_TOKEN_COST
+        output_cost = cls._total_output_tokens * cls.OUTPUT_TOKEN_COST
+        return input_cost + output_cost
+    
+    @classmethod
+    def get_cost_summary(cls) -> Dict[str, Any]:
+        """
+        Get detailed cost summary for all agent calls
+        
+        Returns:
+            Dictionary with cost details
+        """
+        input_cost = cls._total_input_tokens * cls.INPUT_TOKEN_COST
+        output_cost = cls._total_output_tokens * cls.OUTPUT_TOKEN_COST
+        total_cost = input_cost + output_cost
+        
+        return {
+            'total_api_calls': cls._api_calls,
+            'total_input_tokens': cls._total_input_tokens,
+            'total_output_tokens': cls._total_output_tokens,
+            'total_tokens': cls._total_input_tokens + cls._total_output_tokens,
+            'input_cost_usd': input_cost,
+            'output_cost_usd': output_cost,
+            'total_cost_usd': total_cost,
+            'cost_per_1k_input_tokens': cls.INPUT_TOKEN_COST,
+            'cost_per_1k_output_tokens': cls.OUTPUT_TOKEN_COST,
+            'model': 'Claude Sonnet 4.5 (AWS Bedrock)'
+        }
+    
+    @classmethod
+    def reset_cost_tracking(cls):
+        """Reset all cost tracking counters"""
+        cls._total_input_tokens = 0
+        cls._total_output_tokens = 0
+        cls._api_calls = 0
     
     def __str__(self):
         return f"{self.name} ({self.model})"

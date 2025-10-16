@@ -10,6 +10,7 @@ from config import config
 from core.orchestrator import CreativityOrchestrator
 from core.models import Domain
 from core.web_search import get_search_engine
+from agents.base_agent import BaseAgent
 
 
 def main():
@@ -159,6 +160,19 @@ def main():
                 print(f"   Successful: {stats['successful_recoveries']}")
                 print(f"   Success Rate: {stats['recovery_success_rate']*100:.1f}%")
             
+            # Show LLM cost statistics
+            llm_cost = BaseAgent.get_cost_summary()
+            if llm_cost['total_api_calls'] > 0:
+                print(f"\n💰 LLM Cost Statistics:")
+                print(f"   Model: {llm_cost['model']}")
+                print(f"   API Calls: {llm_cost['total_api_calls']}")
+                print(f"   Input Tokens: {llm_cost['total_input_tokens']:,}")
+                print(f"   Output Tokens: {llm_cost['total_output_tokens']:,}")
+                print(f"   Total Tokens: {llm_cost['total_tokens']:,}")
+                print(f"   Input Cost: ${llm_cost['input_cost_usd']:.4f}")
+                print(f"   Output Cost: ${llm_cost['output_cost_usd']:.4f}")
+                print(f"   Total LLM Cost: ${llm_cost['total_cost_usd']:.4f}")
+            
             # Show web search cost statistics
             if args.use_search and config.SERPER_API_KEY:
                 try:
@@ -175,8 +189,18 @@ def main():
                         else:
                             remaining = cost_summary['free_tier_limit'] - cost_summary['total_searches']
                             print(f"   Remaining Free: {remaining} searches this month")
+                        
+                        # Show combined cost
+                        total_cost = llm_cost['total_cost_usd'] + cost_summary['cost_usd']
+                        print(f"\n💵 Total Session Cost: ${total_cost:.4f}")
                 except Exception:
-                    pass  # Silently skip if search engine not initialized
+                    # If search engine not initialized, just show LLM cost
+                    if llm_cost['total_api_calls'] > 0:
+                        print(f"\n💵 Total Session Cost: ${llm_cost['total_cost_usd']:.4f} (LLM only)")
+            else:
+                # No web search, just LLM cost
+                if llm_cost['total_api_calls'] > 0:
+                    print(f"\n💵 Total Session Cost: ${llm_cost['total_cost_usd']:.4f}")
         
         elif args.command == 'creative-loop':
             # Run full creative loop
@@ -226,6 +250,19 @@ def main():
                 get_error_recovery_engine().save_error_patterns(str(error_report_path))
                 print(f"   📊 Error patterns saved to: {error_report_path}")
             
+            # Show LLM cost statistics
+            llm_cost = BaseAgent.get_cost_summary()
+            if llm_cost['total_api_calls'] > 0:
+                print(f"\n💰 LLM Cost Statistics:")
+                print(f"   Model: {llm_cost['model']}")
+                print(f"   API Calls: {llm_cost['total_api_calls']}")
+                print(f"   Input Tokens: {llm_cost['total_input_tokens']:,}")
+                print(f"   Output Tokens: {llm_cost['total_output_tokens']:,}")
+                print(f"   Total Tokens: {llm_cost['total_tokens']:,}")
+                print(f"   Input Cost: ${llm_cost['input_cost_usd']:.4f}")
+                print(f"   Output Cost: ${llm_cost['output_cost_usd']:.4f}")
+                print(f"   Total LLM Cost: ${llm_cost['total_cost_usd']:.4f}")
+            
             # Show web search cost statistics
             if args.use_search and config.SERPER_API_KEY:
                 try:
@@ -242,8 +279,18 @@ def main():
                         else:
                             remaining = cost_summary['free_tier_limit'] - cost_summary['total_searches']
                             print(f"   Remaining Free: {remaining} searches this month")
+                        
+                        # Show combined cost
+                        total_cost = llm_cost['total_cost_usd'] + cost_summary['cost_usd']
+                        print(f"\n💵 Total Session Cost: ${total_cost:.4f}")
                 except Exception:
-                    pass  # Silently skip if search engine not initialized
+                    # If search engine not initialized, just show LLM cost
+                    if llm_cost['total_api_calls'] > 0:
+                        print(f"\n💵 Total Session Cost: ${llm_cost['total_cost_usd']:.4f} (LLM only)")
+            else:
+                # No web search, just LLM cost
+                if llm_cost['total_api_calls'] > 0:
+                    print(f"\n💵 Total Session Cost: ${llm_cost['total_cost_usd']:.4f}")
         
         elif args.command == 'export':
             # Export top ideas
