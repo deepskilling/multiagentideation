@@ -32,6 +32,13 @@ def main():
     )
     
     parser.add_argument(
+        '--prompt',
+        type=str,
+        default=None,
+        help='Custom prompt for ideation (overrides --domain if provided)'
+    )
+    
+    parser.add_argument(
         '--num-ideas',
         type=int,
         default=5,
@@ -84,9 +91,17 @@ def main():
     try:
         if args.command == 'generate':
             # Generate a single batch of ideas
-            print(f"\n🚀 Generating {args.num_ideas} SaaS ideas in {args.domain} domain\n")
+            # Use custom prompt if provided, otherwise use domain
+            ideation_focus = args.prompt if args.prompt else args.domain
+            
+            if args.prompt:
+                print(f"\n🚀 Generating {args.num_ideas} SaaS ideas")
+                print(f"   Custom Prompt: \"{args.prompt}\"\n")
+            else:
+                print(f"\n🚀 Generating {args.num_ideas} SaaS ideas in {args.domain} domain\n")
+            
             results = orchestrator.generate_single_batch(
-                domain=args.domain,
+                domain=ideation_focus,
                 num_ideas=args.num_ideas
             )
             
@@ -108,17 +123,43 @@ def main():
                 print(f"   Differentiator: {idea['differentiator'][:80]}...")
             
             # Save results
-            output_path = args.output or config.REPORTS_DIR / f"batch_results_{args.domain.lower()}.json"
+            if args.output:
+                output_path = args.output
+            elif args.prompt:
+                # Create safe filename from prompt
+                safe_prompt = "".join(c if c.isalnum() or c in (' ', '_') else '_' for c in args.prompt)[:50]
+                output_path = config.REPORTS_DIR / f"batch_results_{safe_prompt.replace(' ', '_').lower()}.json"
+            else:
+                output_path = config.REPORTS_DIR / f"batch_results_{args.domain.lower()}.json"
+            
             with open(output_path, 'w') as f:
                 json.dump(results, f, indent=2, default=str)
             
             print(f"\n💾 Full results saved to: {output_path}")
+            
+            # Show error recovery statistics
+            from core.error_recovery import get_error_recovery_engine
+            stats = get_error_recovery_engine().get_error_statistics()
+            if stats and stats['total_recovery_attempts'] > 0:
+                print(f"\n🔧 Error Recovery Statistics:")
+                print(f"   Recovery Attempts: {stats['total_recovery_attempts']}")
+                print(f"   Successful: {stats['successful_recoveries']}")
+                print(f"   Success Rate: {stats['recovery_success_rate']*100:.1f}%")
         
         elif args.command == 'creative-loop':
             # Run full creative loop
-            print(f"\n🔄 Starting Multi-Agent Creative Loop\n")
+            # Use custom prompt if provided, otherwise use domain
+            ideation_focus = args.prompt if args.prompt else args.domain
+            
+            if args.prompt:
+                print(f"\n🔄 Starting Multi-Agent Creative Loop")
+                print(f"   Custom Prompt: \"{args.prompt}\"\n")
+            else:
+                print(f"\n🔄 Starting Multi-Agent Creative Loop")
+                print(f"   Domain: {args.domain}\n")
+            
             report = orchestrator.run_creative_loop(
-                domain=args.domain,
+                domain=ideation_focus,
                 initial_ideas=args.num_ideas,
                 max_iterations=args.max_iterations
             )
@@ -138,6 +179,20 @@ def main():
             
             print(f"\n💾 Results saved to: {report['output_file']}")
             print(f"💾 Database: {report['database_path']}")
+            
+            # Show error recovery statistics
+            from core.error_recovery import get_error_recovery_engine
+            stats = get_error_recovery_engine().get_error_statistics()
+            if stats and stats['total_recovery_attempts'] > 0:
+                print(f"\n🔧 Error Recovery Statistics:")
+                print(f"   Recovery Attempts: {stats['total_recovery_attempts']}")
+                print(f"   Successful: {stats['successful_recoveries']}")
+                print(f"   Success Rate: {stats['recovery_success_rate']*100:.1f}%")
+                
+                # Save error patterns
+                error_report_path = config.REPORTS_DIR / "error_recovery_patterns.json"
+                get_error_recovery_engine().save_error_patterns(str(error_report_path))
+                print(f"   📊 Error patterns saved to: {error_report_path}")
         
         elif args.command == 'export':
             # Export top ideas

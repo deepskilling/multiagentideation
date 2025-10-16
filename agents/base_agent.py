@@ -9,16 +9,19 @@ import boto3
 from botocore.config import Config
 import json
 from config import config
+from core.error_recovery import get_error_recovery_engine, ErrorType
 
 
 class BaseAgent(ABC):
     """Abstract base class for all agents"""
     
-    def __init__(self, name: str, model: str, role_description: str):
+    def __init__(self, name: str, model: str, role_description: str, enable_error_recovery: bool = True):
         self.name = name
         self.model = model
         self.role_description = role_description
         self.message_history = []
+        self.enable_error_recovery = enable_error_recovery
+        self.error_recovery_engine = get_error_recovery_engine() if enable_error_recovery else None
         
         # Initialize LLM clients
         self.openai_client = None
@@ -52,8 +55,16 @@ class BaseAgent(ABC):
     
     def _call_llm(self, prompt: str, system_message: Optional[str] = None, 
                   temperature: float = 0.7, max_tokens: int = 4000) -> str:
-        """Call the appropriate LLM based on model configuration"""
+        """Call the appropriate LLM based on model configuration with error recovery"""
         
+        if self.enable_error_recovery:
+            return self._call_llm_with_recovery(prompt, system_message, temperature, max_tokens)
+        else:
+            return self._call_llm_direct(prompt, system_message, temperature, max_tokens)
+    
+    def _call_llm_direct(self, prompt: str, system_message: Optional[str] = None,
+                        temperature: float = 0.7, max_tokens: int = 4000) -> str:
+        """Direct LLM call without error recovery"""
         # Determine if using AWS Bedrock, OpenAI, or Anthropic
         if config.USE_AWS_BEDROCK and "claude" in self.model.lower():
             return self._call_bedrock_claude(prompt, system_message, temperature, max_tokens)
@@ -63,6 +74,72 @@ class BaseAgent(ABC):
             return self._call_anthropic(prompt, system_message, temperature, max_tokens)
         else:
             raise ValueError(f"Unsupported model: {self.model}")
+    
+    def _call_llm_with_recovery(self, prompt: str, system_message: Optional[str] = None,
+                                temperature: float = 0.7, max_tokens: int = 4000) -> str:
+        """Call LLM with automatic error recovery"""
+        
+        attempt = 0
+        last_error = None
+        last_response = None
+        
+        while attempt < self.error_recovery_engine.max_retries:
+            attempt += 1
+            
+            try:
+                # Try the LLM call
+                response = self._call_llm_direct(prompt, system_message, temperature, max_tokens)
+                
+                # Check for errors in response
+                detected_error = self.error_recovery_engine.detect_error(response)
+                
+                if detected_error is None:
+                    # Success! Return the response
+                    if attempt > 1:
+                        print(f"      ✅ {self.name}: Success after {attempt} attempts")
+                    return response
+                else:
+                    # Response has errors, treat as exception
+                    print(f"      ⚠️  {self.name}: Detected {detected_error.value} in response")
+                    raise ValueError(f"Response validation failed: {detected_error.value}")
+                    
+            except Exception as e:
+                last_error = e
+                last_response = None
+                
+                if attempt < self.error_recovery_engine.max_retries:
+                    # Try to recover
+                    print(f"      🔧 {self.name}: Attempting recovery (attempt {attempt})")
+                    
+                    # Build recovery prompt
+                    error_type = self.error_recovery_engine.analyze_error(e, last_response)
+                    error_key = f"{error_type.value}:{str(e)[:100]}"
+                    strategy = self.error_recovery_engine.get_recovery_strategy(error_type, error_key)
+                    
+                    # Record error
+                    self.error_recovery_engine.record_error(error_type, str(e))
+                    
+                    # Modify prompt and parameters for retry
+                    prompt = self.error_recovery_engine.build_recovery_prompt(
+                        prompt, error_type, strategy, str(e)
+                    )
+                    
+                    # Adjust parameters based on strategy
+                    if "simplified" in strategy.value:
+                        max_tokens = min(max_tokens, max_tokens // 2)
+                        temperature = max(0.3, temperature - 0.2)
+                    
+                    # Log and continue to retry
+                    continue
+                else:
+                    # Max retries reached
+                    print(f"      ❌ {self.name}: Max retries reached. Raising error.")
+                    raise
+        
+        # Should not reach here, but just in case
+        if last_error:
+            raise last_error
+        return last_response or ""
     
     def _call_openai(self, prompt: str, system_message: Optional[str] = None,
                      temperature: float = 0.7, max_tokens: int = 4000) -> str:
@@ -181,6 +258,17 @@ class BaseAgent(ABC):
     def get_history(self) -> list:
         """Get agent's message history"""
         return self.message_history
+    
+    def get_error_statistics(self) -> Optional[Dict[str, Any]]:
+        """Get error recovery statistics for this agent"""
+        if self.error_recovery_engine:
+            return self.error_recovery_engine.get_error_statistics()
+        return None
+    
+    def save_error_patterns(self, filepath: str):
+        """Save learned error patterns to file"""
+        if self.error_recovery_engine:
+            self.error_recovery_engine.save_error_patterns(filepath)
     
     def __str__(self):
         return f"{self.name} ({self.model})"
