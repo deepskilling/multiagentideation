@@ -39,6 +39,12 @@ def main():
     )
     
     parser.add_argument(
+        '--use-search',
+        action='store_true',
+        help='Enable web search for market intelligence (requires SERPER_API_KEY)'
+    )
+    
+    parser.add_argument(
         '--num-ideas',
         type=int,
         default=5,
@@ -85,8 +91,14 @@ def main():
         print("     - Set ANTHROPIC_API_KEY in .env")
         sys.exit(1)
     
-    # Initialize orchestrator
-    orchestrator = CreativityOrchestrator()
+    # Check for web search requirements
+    if args.use_search and not config.SERPER_API_KEY:
+        print("⚠️  Warning: --use-search enabled but SERPER_API_KEY not found in .env")
+        print("   Web search will be disabled. Please add SERPER_API_KEY to use this feature.")
+        args.use_search = False
+    
+    # Initialize orchestrator with web search if enabled
+    orchestrator = CreativityOrchestrator(use_web_search=args.use_search)
     
     try:
         if args.command == 'generate':

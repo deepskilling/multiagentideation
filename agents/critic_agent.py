@@ -2,44 +2,57 @@
 Critic Agent - Evaluates SaaS ideas on multiple dimensions
 """
 import json
-from typing import List
+from typing import List, Optional
 from agents.base_agent import BaseAgent
 from core.models import SaaSIdea, Evaluation
+from core.web_search import get_search_engine
 from config import config
 
 
 class CriticAgent(BaseAgent):
     """Agent responsible for evaluating and scoring SaaS ideas"""
     
-    def __init__(self):
+    def __init__(self, use_web_search: bool = False):
         super().__init__(
             name="Critic",
             model=config.CRITIC_MODEL,
             role_description="You are an expert product evaluator and venture analyst. Your role is to critically assess SaaS ideas on novelty, feasibility, market fit, and business viability."
         )
+        self.use_web_search = use_web_search
+        self.search_engine = get_search_engine() if use_web_search and config.SERPER_API_KEY else None
     
-    def execute(self, ideas: List[SaaSIdea]) -> List[Evaluation]:
+    def execute(self, ideas: List[SaaSIdea], use_search: Optional[bool] = None) -> List[Evaluation]:
         """
         Evaluate a list of SaaS ideas
         
         Args:
             ideas: List of SaaSIdea objects to evaluate
+            use_search: Override the instance's use_web_search setting
             
         Returns:
             List of Evaluation objects
         """
+        # Allow per-call override of web search
+        search_enabled = use_search if use_search is not None else self.use_web_search
+        
         evaluations = []
         
         for idea in ideas:
             self.log_message(f"Evaluating idea: {idea.idea_name}")
-            evaluation = self._evaluate_single_idea(idea)
+            evaluation = self._evaluate_single_idea(idea, search_enabled)
             evaluations.append(evaluation)
         
         return evaluations
     
-    def _evaluate_single_idea(self, idea: SaaSIdea) -> Evaluation:
+    def _evaluate_single_idea(self, idea: SaaSIdea, use_search: bool = False) -> Evaluation:
         """Evaluate a single idea"""
-        prompt = self._build_evaluation_prompt(idea)
+        
+        # Perform web search if enabled
+        search_context = ""
+        if use_search and self.search_engine:
+            search_context = self._get_search_context(idea)
+        
+        prompt = self._build_evaluation_prompt(idea, search_context)
         system_message = self._build_system_message()
         
         response = self._call_llm(
@@ -78,8 +91,49 @@ Your evaluations are:
 - Specific with concrete justifications
 - Focused on both strengths and weaknesses"""
     
-    def _build_evaluation_prompt(self, idea: SaaSIdea) -> str:
+    def _get_search_context(self, idea: SaaSIdea) -> str:
+        """Get web search context for an idea"""
+        print(f"      🔍 Searching web for: {idea.idea_name}")
+        
+        search_results = []
+        
+        try:
+            # Search for competitors
+            competitors = self.search_engine.search_competitors(
+                domain=idea.domain,
+                product_type="SaaS",
+                num_results=3
+            )
+            
+            # Search for market trends
+            market_trends = self.search_engine.search_market_trends(
+                domain=idea.domain,
+                topic=idea.idea_name,
+                num_results=2
+            )
+            
+            search_results = competitors + market_trends
+            
+            if search_results:
+                context = self.search_engine.format_results_for_prompt(search_results, max_length=800)
+                print(f"      ✅ Found {len(search_results)} relevant results")
+                return context
+            else:
+                print(f"      ⚠️  No search results found")
+                return ""
+                
+        except Exception as e:
+            print(f"      ⚠️  Search failed: {str(e)}")
+            return ""
+    
+    def _build_evaluation_prompt(self, idea: SaaSIdea, search_context: str = "") -> str:
         """Build prompt for evaluating an idea"""
+        
+        # Add search context if available
+        search_section = ""
+        if search_context:
+            search_section = f"\n\n**Market Intelligence (from web search):**\n{search_context}\n\nUse this real-time market data to inform your evaluation, especially for novelty and market fit assessments."
+        
         prompt = f"""Evaluate the following SaaS product idea on four dimensions:
 
 **Product Idea:**
@@ -90,7 +144,7 @@ Your evaluations are:
 - Differentiator: {idea.differentiator}
 - Tech Stack: {', '.join(idea.tech_stack)}
 - Revenue Model: {idea.revenue_model}
-- Domain: {idea.domain}
+- Domain: {idea.domain}{search_section}
 
 **Evaluation Criteria:**
 

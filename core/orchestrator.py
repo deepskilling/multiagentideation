@@ -22,7 +22,7 @@ from agents import (
 class CreativityOrchestrator:
     """Central orchestrator for the multi-agent creativity loop"""
     
-    def __init__(self, db_path: Optional[Path] = None):
+    def __init__(self, db_path: Optional[Path] = None, use_web_search: bool = False):
         """Initialize the orchestrator and all agents"""
         # Initialize database
         self.db = IdeaDatabase(db_path)
@@ -30,9 +30,10 @@ class CreativityOrchestrator:
         # Initialize scoring engine
         self.scoring_engine = ScoringEngine()
         
-        # Initialize agents
+        # Initialize agents (with web search if enabled)
+        self.use_web_search = use_web_search
         self.generator = GeneratorAgent()
-        self.critic = CriticAgent()
+        self.critic = CriticAgent(use_web_search=use_web_search)
         self.synthesizer = SynthesizerAgent()
         self.disruptor = DisruptorAgent()
         self.strategist = StrategistAgent()
@@ -49,6 +50,8 @@ class CreativityOrchestrator:
         print(f"   Synthesizer: {self.synthesizer.model}")
         print(f"   Disruptor: {self.disruptor.model}")
         print(f"   Strategist: {self.strategist.model}")
+        if use_web_search:
+            print(f"   🔍 Web Search: Enabled (Serper API)")
     
     def run_creative_loop(self, domain: str, initial_ideas: int = 5, 
                          max_iterations: Optional[int] = None) -> Dict[str, Any]:

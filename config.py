@@ -21,6 +21,7 @@ class Config:
     # API Keys
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
     ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
+    SERPER_API_KEY = os.getenv("SERPER_API_KEY")
     
     # AWS Bedrock Configuration
     USE_AWS_BEDROCK = os.getenv("USE_AWS_BEDROCK", "true").lower() == "true"
