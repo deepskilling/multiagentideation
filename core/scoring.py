@@ -12,7 +12,7 @@ try:
     from sentence_transformers import SentenceTransformer
     from sklearn.metrics.pairwise import cosine_similarity
     EMBEDDINGS_AVAILABLE = not os.getenv('DISABLE_EMBEDDINGS', False)
-    ndarray = ndarray
+    ndarray = np.ndarray
 except ImportError:
     EMBEDDINGS_AVAILABLE = False
     np = None

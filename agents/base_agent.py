@@ -87,13 +87,17 @@ class BaseAgent(ABC):
                     except Exception:
                         pass  # Fall back to boto3 auto-discovery
                 
-                # Create client with explicit credentials (bypasses Session/config lookup)
-                self.bedrock_client = boto3.client(
-                    service_name='bedrock-runtime',
-                    region_name=config.AWS_REGION,
+                # Create Session explicitly with credentials to bypass config file lookup
+                # This is the ONLY way to avoid _get_default_session()
+                session = boto3.Session(
                     aws_access_key_id=aws_access_key_id,
                     aws_secret_access_key=aws_secret_access_key,
                     aws_session_token=aws_session_token,
+                    region_name=config.AWS_REGION
+                )
+                
+                self.bedrock_client = session.client(
+                    service_name='bedrock-runtime',
                     config=boto_config
                 )
         elif config.OPENAI_API_KEY:
