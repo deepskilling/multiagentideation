@@ -1,32 +1,53 @@
 """
 Scoring Engine - Calculates novelty, diversity, and composite scores
 """
-import numpy as np
-from typing import List, Tuple
-from sentence_transformers import SentenceTransformer
-from sklearn.metrics.pairwise import cosine_similarity
+import os
+from typing import List, Tuple, Optional, Any
 from core.models import SaaSIdea, Evaluation
 from config import config
+
+# Optional dependencies for embeddings (heavy - not needed for basic operation)
+try:
+    import numpy as np
+    from sentence_transformers import SentenceTransformer
+    from sklearn.metrics.pairwise import cosine_similarity
+    EMBEDDINGS_AVAILABLE = not os.getenv('DISABLE_EMBEDDINGS', False)
+    ndarray = ndarray
+except ImportError:
+    EMBEDDINGS_AVAILABLE = False
+    np = None
+    ndarray = Any  # Fallback type when numpy not available
+    print("⚠️  Warning: sentence-transformers not available. Using simplified scoring.")
 
 
 class ScoringEngine:
     """Engine for computing various scores and metrics"""
     
     def __init__(self):
-        # Load sentence transformer for embeddings
-        self.embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
+        # Load sentence transformer for embeddings (optional)
+        self.embedding_model = None
         self.previous_embeddings = []
         self.previous_ideas = []
+        
+        if EMBEDDINGS_AVAILABLE:
+            try:
+                self.embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
+            except Exception as e:
+                print(f"⚠️  Warning: Could not load embeddings model: {e}")
     
-    def compute_embedding(self, idea: SaaSIdea) -> np.ndarray:
+    def compute_embedding(self, idea: SaaSIdea) -> Optional:
         """Compute embedding vector for an idea"""
+        if not self.embedding_model:
+            return None
         # Combine text fields for embedding
         text = f"{idea.idea_name}. {idea.problem_statement}. {idea.differentiator}"
         embedding = self.embedding_model.encode(text, convert_to_numpy=True)
         return embedding
     
-    def compute_embeddings_batch(self, ideas: List[SaaSIdea]) -> List[np.ndarray]:
+    def compute_embeddings_batch(self, ideas: List[SaaSIdea]) -> List:
         """Compute embeddings for multiple ideas"""
+        if not self.embedding_model:
+            return [None] * len(ideas)
         texts = [
             f"{idea.idea_name}. {idea.problem_statement}. {idea.differentiator}"
             for idea in ideas
@@ -34,16 +55,20 @@ class ScoringEngine:
         embeddings = self.embedding_model.encode(texts, convert_to_numpy=True)
         return [embeddings[i] for i in range(len(ideas))]
     
-    def compute_novelty_score(self, idea_embedding: np.ndarray) -> float:
+    def compute_novelty_score(self, idea_embedding: Optional) -> float:
         """
         Compute novelty score based on semantic distance from previous ideas
         
         Args:
-            idea_embedding: Embedding vector of the new idea
+            idea_embedding: Embedding vector of the new idea (or None if embeddings disabled)
             
         Returns:
             Novelty score between 0 and 1 (higher = more novel)
         """
+        # If embeddings not available, use simple heuristic
+        if idea_embedding is None or not EMBEDDINGS_AVAILABLE:
+            return 0.7  # Default novelty score when embeddings unavailable
+            
         if not self.previous_embeddings:
             return 0.8  # First ideas get good novelty score
         
@@ -65,7 +90,7 @@ class ScoringEngine:
         return novelty
     
     def compute_diversity_score(self, ideas: List[SaaSIdea], 
-                                embeddings: List[np.ndarray]) -> float:
+                                embeddings: List[ndarray]) -> float:
         """
         Compute diversity score for a set of ideas
         
@@ -117,7 +142,7 @@ class ScoringEngine:
     
     def enhance_evaluation_with_novelty(self, idea: SaaSIdea, 
                                        evaluation: Evaluation,
-                                       idea_embedding: np.ndarray) -> Evaluation:
+                                       idea_embedding: ndarray) -> Evaluation:
         """
         Enhance an evaluation by computing semantic novelty
         
@@ -147,7 +172,7 @@ class ScoringEngine:
         return evaluation
     
     def find_duplicate_ideas(self, new_ideas: List[SaaSIdea], 
-                            new_embeddings: List[np.ndarray]) -> List[Tuple[int, int, float]]:
+                            new_embeddings: List[ndarray]) -> List[Tuple[int, int, float]]:
         """
         Find potential duplicate ideas based on similarity
         
@@ -171,7 +196,7 @@ class ScoringEngine:
         
         return duplicates
     
-    def update_memory(self, ideas: List[SaaSIdea], embeddings: List[np.ndarray]):
+    def update_memory(self, ideas: List[SaaSIdea], embeddings: List[ndarray]):
         """
         Update the memory with new ideas and embeddings
         
@@ -184,7 +209,7 @@ class ScoringEngine:
     
     def get_top_k_diverse_ideas(self, ideas: List[SaaSIdea], 
                                evaluations: List[Evaluation],
-                               embeddings: List[np.ndarray],
+                               embeddings: List[ndarray],
                                k: int = 5) -> List[Tuple[SaaSIdea, Evaluation]]:
         """
         Select top K ideas balancing quality and diversity

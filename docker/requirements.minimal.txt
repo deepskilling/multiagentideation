@@ -1,0 +1,22 @@
+# Minimal Dependencies for CLI-only Docker Deployment
+# Target size: <500MB (vs 2.8GB original)
+
+# Core
+python-dotenv==1.0.0
+pydantic==2.5.3
+
+# AWS & LLM
+boto3>=1.34.0
+anthropic==0.18.0
+openai==1.10.0
+
+# Database (minimal)
+duckdb==0.10.0
+numpy==1.26.3
+
+# Web Search
+requests==2.31.0
+
+# Logging
+python-json-logger==2.0.7
+

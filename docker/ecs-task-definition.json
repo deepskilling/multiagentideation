@@ -9,7 +9,7 @@
   "containerDefinitions": [
     {
       "name": "multiagent-ideation",
-      "image": "891067072053.dkr.ecr.us-east-1.amazonaws.com/multiagent-ideation:latest",
+      "image": "891067072053.dkr.ecr.us-east-1.amazonaws.com/multiagent-ideation:lean",
       "essential": true,
       "memory": 4096,
       "cpu": 2048,
@@ -41,12 +41,6 @@
         {
           "name": "STRATEGIST_MODEL",
           "value": "claude-sonnet-4.5"
-        }
-      ],
-      "secrets": [
-        {
-          "name": "SERPER_API_KEY",
-          "valueFrom": "arn:aws:secretsmanager:us-east-1:891067072053:secret:multiagent/serper-api-key"
         }
       ],
       "logConfiguration": {
