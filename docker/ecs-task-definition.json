@@ -1,0 +1,133 @@
+{
+  "family": "multiagent-ideation-task",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "2048",
+  "memory": "4096",
+  "executionRoleArn": "arn:aws:iam::YOUR_ACCOUNT_ID:role/ecsTaskExecutionRole",
+  "taskRoleArn": "arn:aws:iam::YOUR_ACCOUNT_ID:role/multiagent-ideation-task-role",
+  "containerDefinitions": [
+    {
+      "name": "multiagent-ideation",
+      "image": "YOUR_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/multiagent-ideation:latest",
+      "essential": true,
+      "memory": 4096,
+      "cpu": 2048,
+      "environment": [
+        {
+          "name": "USE_AWS_BEDROCK",
+          "value": "true"
+        },
+        {
+          "name": "AWS_REGION",
+          "value": "us-east-1"
+        },
+        {
+          "name": "GENERATOR_MODEL",
+          "value": "claude-sonnet-4.5"
+        },
+        {
+          "name": "CRITIC_MODEL",
+          "value": "claude-sonnet-4.5"
+        },
+        {
+          "name": "SYNTHESIZER_MODEL",
+          "value": "claude-sonnet-4.5"
+        },
+        {
+          "name": "DISRUPTOR_MODEL",
+          "value": "claude-sonnet-4.5"
+        },
+        {
+          "name": "STRATEGIST_MODEL",
+          "value": "claude-sonnet-4.5"
+        }
+      ],
+      "secrets": [
+        {
+          "name": "SERPER_API_KEY",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:YOUR_ACCOUNT_ID:secret:multiagent/serper-api-key"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/multiagent-ideation",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      },
+      "mountPoints": [
+        {
+          "sourceVolume": "efs-data",
+          "containerPath": "/app/data",
+          "readOnly": false
+        },
+        {
+          "sourceVolume": "efs-reports",
+          "containerPath": "/app/reports",
+          "readOnly": false
+        }
+      ],
+      "command": [
+        "python",
+        "main.py",
+        "generate",
+        "--prompt",
+        "Sample SaaS idea",
+        "--num-ideas",
+        "5",
+        "--use-search"
+      ],
+      "healthCheck": {
+        "command": [
+          "CMD-SHELL",
+          "python -c 'import sys; sys.exit(0)' || exit 1"
+        ],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 60
+      }
+    }
+  ],
+  "volumes": [
+    {
+      "name": "efs-data",
+      "efsVolumeConfiguration": {
+        "fileSystemId": "fs-XXXXXXXXX",
+        "rootDirectory": "/data",
+        "transitEncryption": "ENABLED",
+        "authorizationConfig": {
+          "iam": "ENABLED"
+        }
+      }
+    },
+    {
+      "name": "efs-reports",
+      "efsVolumeConfiguration": {
+        "fileSystemId": "fs-XXXXXXXXX",
+        "rootDirectory": "/reports",
+        "transitEncryption": "ENABLED",
+        "authorizationConfig": {
+          "iam": "ENABLED"
+        }
+      }
+    }
+  ],
+  "tags": [
+    {
+      "key": "Environment",
+      "value": "production"
+    },
+    {
+      "key": "Application",
+      "value": "multiagent-ideation"
+    },
+    {
+      "key": "ManagedBy",
+      "value": "terraform"
+    }
+  ]
+}
+

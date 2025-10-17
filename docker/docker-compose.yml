@@ -1,0 +1,90 @@
+version: '3.8'
+
+services:
+  # Multi-Agent Ideation System
+  multiagent-ideation:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: multiagent-ideation
+    
+    # Environment variables
+    environment:
+      - USE_AWS_BEDROCK=true
+      - AWS_REGION=us-east-1
+      - AWS_PROFILE=diligent
+      # Serper API key (optional)
+      - SERPER_API_KEY=${SERPER_API_KEY}
+      # Override models if needed
+      - GENERATOR_MODEL=claude-sonnet-4.5
+      - CRITIC_MODEL=claude-sonnet-4.5
+      - SYNTHESIZER_MODEL=claude-sonnet-4.5
+    
+    # AWS credentials (for local development only)
+    # In ECS, use IAM roles instead
+    volumes:
+      - ~/.aws:/root/.aws:ro  # Mount AWS credentials (read-only)
+      - ../data:/app/data  # Persist database
+      - ../reports:/app/reports  # Persist reports
+      - ../logs:/app/logs  # Persist logs
+    
+    # Override default command for interactive mode
+    # Uncomment one of the following:
+    
+    # Option 1: Keep container running for interactive use
+    # command: tail -f /dev/null
+    
+    # Option 2: Generate ideas
+    # command: python main.py generate --prompt "AI-powered SaaS" --num-ideas 5 --use-search
+    
+    # Option 3: Deep ideation
+    # command: python deep_ideation.py "Healthcare AI" --num-ideas 10
+    
+    # Option 4: Interactive bash
+    stdin_open: true
+    tty: true
+    
+    # Resource limits (adjust as needed)
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 2G
+    
+    # Restart policy
+    restart: unless-stopped
+    
+    # Network
+    networks:
+      - multiagent-network
+
+networks:
+  multiagent-network:
+    driver: bridge
+
+# Usage Examples:
+# 
+# 1. Build and start:
+#    docker-compose up --build
+#
+# 2. Run in detached mode:
+#    docker-compose up -d
+#
+# 3. Execute commands:
+#    docker-compose exec multiagent-ideation python main.py generate --prompt "YOUR IDEA" --num-ideas 5
+#
+# 4. Interactive shell:
+#    docker-compose exec multiagent-ideation /bin/bash
+#
+# 5. View logs:
+#    docker-compose logs -f multiagent-ideation
+#
+# 6. Stop:
+#    docker-compose down
+#
+# 7. Stop and remove volumes:
+#    docker-compose down -v
+
