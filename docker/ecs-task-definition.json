@@ -4,12 +4,12 @@
   "requiresCompatibilities": ["FARGATE"],
   "cpu": "2048",
   "memory": "4096",
-  "executionRoleArn": "arn:aws:iam::YOUR_ACCOUNT_ID:role/ecsTaskExecutionRole",
-  "taskRoleArn": "arn:aws:iam::YOUR_ACCOUNT_ID:role/multiagent-ideation-task-role",
+  "executionRoleArn": "arn:aws:iam::891067072053:role/multiagent-ideation-execution-role",
+  "taskRoleArn": "arn:aws:iam::891067072053:role/multiagent-ideation-task-role",
   "containerDefinitions": [
     {
       "name": "multiagent-ideation",
-      "image": "YOUR_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/multiagent-ideation:latest",
+      "image": "891067072053.dkr.ecr.us-east-1.amazonaws.com/multiagent-ideation:latest",
       "essential": true,
       "memory": 4096,
       "cpu": 2048,
@@ -46,7 +46,7 @@
       "secrets": [
         {
           "name": "SERPER_API_KEY",
-          "valueFrom": "arn:aws:secretsmanager:us-east-1:YOUR_ACCOUNT_ID:secret:multiagent/serper-api-key"
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:891067072053:secret:multiagent/serper-api-key"
         }
       ],
       "logConfiguration": {
@@ -57,18 +57,6 @@
           "awslogs-stream-prefix": "ecs"
         }
       },
-      "mountPoints": [
-        {
-          "sourceVolume": "efs-data",
-          "containerPath": "/app/data",
-          "readOnly": false
-        },
-        {
-          "sourceVolume": "efs-reports",
-          "containerPath": "/app/reports",
-          "readOnly": false
-        }
-      ],
       "command": [
         "python",
         "main.py",
@@ -88,30 +76,6 @@
         "timeout": 5,
         "retries": 3,
         "startPeriod": 60
-      }
-    }
-  ],
-  "volumes": [
-    {
-      "name": "efs-data",
-      "efsVolumeConfiguration": {
-        "fileSystemId": "fs-XXXXXXXXX",
-        "rootDirectory": "/data",
-        "transitEncryption": "ENABLED",
-        "authorizationConfig": {
-          "iam": "ENABLED"
-        }
-      }
-    },
-    {
-      "name": "efs-reports",
-      "efsVolumeConfiguration": {
-        "fileSystemId": "fs-XXXXXXXXX",
-        "rootDirectory": "/reports",
-        "transitEncryption": "ENABLED",
-        "authorizationConfig": {
-          "iam": "ENABLED"
-        }
       }
     }
   ],
