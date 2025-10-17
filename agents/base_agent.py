@@ -61,12 +61,39 @@ class BaseAgent(ABC):
                 )
             else:
                 # Use default credentials (IAM role or environment variables)
-                # Setup default session explicitly to use environment credentials
-                import botocore.session
-                botocore_session = botocore.session.Session()
-                boto_session = boto3.Session(botocore_session=botocore_session, region_name=config.AWS_REGION)
-                self.bedrock_client = boto_session.client(
+                # Fetch credentials explicitly to bypass boto3 Session config lookup
+                import os
+                import requests
+                
+                aws_access_key_id = os.environ.get('AWS_ACCESS_KEY_ID')
+                aws_secret_access_key = os.environ.get('AWS_SECRET_ACCESS_KEY')
+                aws_session_token = os.environ.get('AWS_SESSION_TOKEN')
+                
+                # If not in environment, try ECS metadata service
+                if not aws_access_key_id:
+                    try:
+                        # Get credentials from ECS task role via metadata endpoint
+                        metadata_uri = os.environ.get('AWS_CONTAINER_CREDENTIALS_RELATIVE_URI')
+                        if metadata_uri:
+                            response = requests.get(
+                                f'http://169.254.170.2{metadata_uri}',
+                                timeout=2
+                            )
+                            if response.status_code == 200:
+                                creds = response.json()
+                                aws_access_key_id = creds['AccessKeyId']
+                                aws_secret_access_key = creds['SecretAccessKey']
+                                aws_session_token = creds['Token']
+                    except Exception:
+                        pass  # Fall back to boto3 auto-discovery
+                
+                # Create client with explicit credentials (bypasses Session/config lookup)
+                self.bedrock_client = boto3.client(
                     service_name='bedrock-runtime',
+                    region_name=config.AWS_REGION,
+                    aws_access_key_id=aws_access_key_id,
+                    aws_secret_access_key=aws_secret_access_key,
+                    aws_session_token=aws_session_token,
                     config=boto_config
                 )
         elif config.OPENAI_API_KEY:

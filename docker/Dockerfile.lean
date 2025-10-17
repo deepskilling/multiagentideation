@@ -13,7 +13,9 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     # Disable heavy optional features
-    DISABLE_EMBEDDINGS=1
+    DISABLE_EMBEDDINGS=1 \
+    # Point boto3 to our config file to prevent profile lookup errors
+    AWS_CONFIG_FILE=/root/.aws/config
 
 # Install only essential system dependencies (minimal)
 RUN apt-get update && apt-get install -y --no-install-recommends \

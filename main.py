@@ -74,29 +74,26 @@ def main():
     if config.USE_AWS_BEDROCK:
         print(f"✅ Using AWS Bedrock with profile: {config.AWS_PROFILE}")
         print(f"   Region: {config.AWS_REGION}")
-        # Skip validation if using environment credentials (AWS_ACCESS_KEY_ID set)
-        if not os.getenv('AWS_ACCESS_KEY_ID'):
-            # Verify AWS credentials are available
+        # Skip validation if using environment credentials or in ECS
+        in_ecs = os.getenv('AWS_EXECUTION_ENV') or os.getenv('ECS_CONTAINER_METADATA_URI')
+        if os.getenv('AWS_ACCESS_KEY_ID'):
+            print(f"   Using AWS credentials from environment variables")
+        elif in_ecs:
+            print(f"   Using ECS task IAM role (validation skipped)")
+        elif config.AWS_PROFILE and config.AWS_PROFILE.strip():
+            # Only validate if using a profile locally
             try:
                 import boto3
-                # Use profile if specified, otherwise use default credentials (IAM role)
-                if config.AWS_PROFILE and config.AWS_PROFILE.strip():
-                    session = boto3.Session(profile_name=config.AWS_PROFILE)
-                    session.client('bedrock-runtime', region_name=config.AWS_REGION)
-                else:
-                    # Use default credentials (IAM role in ECS)
-                    boto3.client('bedrock-runtime', region_name=config.AWS_REGION)
+                session = boto3.Session(profile_name=config.AWS_PROFILE)
+                session.client('bedrock-runtime', region_name=config.AWS_REGION)
+                print(f"   AWS profile validated successfully")
             except Exception as e:
-                profile_msg = f"with profile '{config.AWS_PROFILE}'" if config.AWS_PROFILE else "with IAM role"
-                print(f"❌ Error: Cannot access AWS Bedrock {profile_msg}")
+                print(f"❌ Error: Cannot access AWS Bedrock with profile '{config.AWS_PROFILE}'")
                 print(f"   Error: {str(e)}")
-                if config.AWS_PROFILE:
-                    print(f"   Please ensure AWS CLI is configured with the '{config.AWS_PROFILE}' profile")
-                else:
-                    print(f"   Please ensure the ECS task role has Bedrock permissions")
+                print(f"   Please ensure AWS CLI is configured with the '{config.AWS_PROFILE}' profile")
                 sys.exit(1)
         else:
-            print(f"   Using AWS credentials from environment variables")
+            print(f"   Warning: No credentials detected. Proceeding anyway...")
     elif not config.ANTHROPIC_API_KEY and not config.OPENAI_API_KEY:
         print("❌ Error: No API access configured!")
         print("   Option 1: Use AWS Bedrock (default)")
