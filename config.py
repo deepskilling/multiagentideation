@@ -23,9 +23,9 @@ class Config:
     ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
     SERPER_API_KEY = os.getenv("SERPER_API_KEY")
     
-    # AWS Bedrock Configuration
+    # AWS Bedrock Configuration (optimized for local development)
     USE_AWS_BEDROCK = os.getenv("USE_AWS_BEDROCK", "true").lower() == "true"
-    AWS_PROFILE = os.getenv("AWS_PROFILE") or None  # Use None for IAM role, or specify profile name
+    AWS_PROFILE = os.getenv("AWS_PROFILE", "diligent")  # Default to 'diligent' profile for local dev
     AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
     
     # Agent Configuration
