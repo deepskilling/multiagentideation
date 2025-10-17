@@ -41,6 +41,13 @@ COPY prd_generator.py .
 # Create necessary directories
 RUN mkdir -p data reports logs
 
+# Create minimal AWS config to prevent boto3 from failing when looking for config
+# This allows boto3 to use environment variables or IAM roles without config file errors
+RUN mkdir -p /root/.aws && \
+    echo "[default]" > /root/.aws/config && \
+    echo "region = us-east-1" >> /root/.aws/config && \
+    chmod 600 /root/.aws/config
+
 # Remove any remaining cache/temp files
 RUN find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true && \
     find . -type f -name '*.pyc' -delete 2>/dev/null || true

@@ -3,6 +3,7 @@ Main entry point for the Multi-Agent Creativity System
 """
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -73,25 +74,29 @@ def main():
     if config.USE_AWS_BEDROCK:
         print(f"✅ Using AWS Bedrock with profile: {config.AWS_PROFILE}")
         print(f"   Region: {config.AWS_REGION}")
-        # Verify AWS credentials are available
-        try:
-            import boto3
-            # Use profile if specified, otherwise use default credentials (IAM role)
-            if config.AWS_PROFILE and config.AWS_PROFILE.strip():
-                session = boto3.Session(profile_name=config.AWS_PROFILE)
-                session.client('bedrock-runtime', region_name=config.AWS_REGION)
-            else:
-                # Use default credentials (IAM role in ECS)
-                boto3.client('bedrock-runtime', region_name=config.AWS_REGION)
-        except Exception as e:
-            profile_msg = f"with profile '{config.AWS_PROFILE}'" if config.AWS_PROFILE else "with IAM role"
-            print(f"❌ Error: Cannot access AWS Bedrock {profile_msg}")
-            print(f"   Error: {str(e)}")
-            if config.AWS_PROFILE:
-                print(f"   Please ensure AWS CLI is configured with the '{config.AWS_PROFILE}' profile")
-            else:
-                print(f"   Please ensure the ECS task role has Bedrock permissions")
-            sys.exit(1)
+        # Skip validation if using environment credentials (AWS_ACCESS_KEY_ID set)
+        if not os.getenv('AWS_ACCESS_KEY_ID'):
+            # Verify AWS credentials are available
+            try:
+                import boto3
+                # Use profile if specified, otherwise use default credentials (IAM role)
+                if config.AWS_PROFILE and config.AWS_PROFILE.strip():
+                    session = boto3.Session(profile_name=config.AWS_PROFILE)
+                    session.client('bedrock-runtime', region_name=config.AWS_REGION)
+                else:
+                    # Use default credentials (IAM role in ECS)
+                    boto3.client('bedrock-runtime', region_name=config.AWS_REGION)
+            except Exception as e:
+                profile_msg = f"with profile '{config.AWS_PROFILE}'" if config.AWS_PROFILE else "with IAM role"
+                print(f"❌ Error: Cannot access AWS Bedrock {profile_msg}")
+                print(f"   Error: {str(e)}")
+                if config.AWS_PROFILE:
+                    print(f"   Please ensure AWS CLI is configured with the '{config.AWS_PROFILE}' profile")
+                else:
+                    print(f"   Please ensure the ECS task role has Bedrock permissions")
+                sys.exit(1)
+        else:
+            print(f"   Using AWS credentials from environment variables")
     elif not config.ANTHROPIC_API_KEY and not config.OPENAI_API_KEY:
         print("❌ Error: No API access configured!")
         print("   Option 1: Use AWS Bedrock (default)")

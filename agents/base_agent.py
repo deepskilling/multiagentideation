@@ -60,10 +60,13 @@ class BaseAgent(ABC):
                     config=boto_config
                 )
             else:
-                # Use default credentials (IAM role)
-                self.bedrock_client = boto3.client(
+                # Use default credentials (IAM role or environment variables)
+                # Setup default session explicitly to use environment credentials
+                import botocore.session
+                botocore_session = botocore.session.Session()
+                boto_session = boto3.Session(botocore_session=botocore_session, region_name=config.AWS_REGION)
+                self.bedrock_client = boto_session.client(
                     service_name='bedrock-runtime',
-                    region_name=config.AWS_REGION,
                     config=boto_config
                 )
         elif config.OPENAI_API_KEY:
