@@ -19,6 +19,10 @@
           "value": "true"
         },
         {
+          "name": "AWS_PROFILE",
+          "value": ""
+        },
+        {
           "name": "AWS_REGION",
           "value": "us-east-1"
         },

@@ -51,12 +51,21 @@ class BaseAgent(ABC):
                 connect_timeout=60,
                 retries={'max_attempts': 3}
             )
-            session = boto3.Session(profile_name=config.AWS_PROFILE)
-            self.bedrock_client = session.client(
-                service_name='bedrock-runtime',
-                region_name=config.AWS_REGION,
-                config=boto_config
-            )
+            # Use profile if specified, otherwise use default credentials (IAM role in ECS)
+            if config.AWS_PROFILE and config.AWS_PROFILE.strip():
+                session = boto3.Session(profile_name=config.AWS_PROFILE)
+                self.bedrock_client = session.client(
+                    service_name='bedrock-runtime',
+                    region_name=config.AWS_REGION,
+                    config=boto_config
+                )
+            else:
+                # Use default credentials (IAM role)
+                self.bedrock_client = boto3.client(
+                    service_name='bedrock-runtime',
+                    region_name=config.AWS_REGION,
+                    config=boto_config
+                )
         elif config.OPENAI_API_KEY:
             self.openai_client = openai.OpenAI(api_key=config.OPENAI_API_KEY)
         elif config.ANTHROPIC_API_KEY:

@@ -76,12 +76,21 @@ def main():
         # Verify AWS credentials are available
         try:
             import boto3
-            session = boto3.Session(profile_name=config.AWS_PROFILE)
-            session.client('bedrock-runtime', region_name=config.AWS_REGION)
+            # Use profile if specified, otherwise use default credentials (IAM role)
+            if config.AWS_PROFILE and config.AWS_PROFILE.strip():
+                session = boto3.Session(profile_name=config.AWS_PROFILE)
+                session.client('bedrock-runtime', region_name=config.AWS_REGION)
+            else:
+                # Use default credentials (IAM role in ECS)
+                boto3.client('bedrock-runtime', region_name=config.AWS_REGION)
         except Exception as e:
-            print(f"❌ Error: Cannot access AWS Bedrock with profile '{config.AWS_PROFILE}'")
+            profile_msg = f"with profile '{config.AWS_PROFILE}'" if config.AWS_PROFILE else "with IAM role"
+            print(f"❌ Error: Cannot access AWS Bedrock {profile_msg}")
             print(f"   Error: {str(e)}")
-            print(f"   Please ensure AWS CLI is configured with the '{config.AWS_PROFILE}' profile")
+            if config.AWS_PROFILE:
+                print(f"   Please ensure AWS CLI is configured with the '{config.AWS_PROFILE}' profile")
+            else:
+                print(f"   Please ensure the ECS task role has Bedrock permissions")
             sys.exit(1)
     elif not config.ANTHROPIC_API_KEY and not config.OPENAI_API_KEY:
         print("❌ Error: No API access configured!")

@@ -25,7 +25,7 @@ class Config:
     
     # AWS Bedrock Configuration
     USE_AWS_BEDROCK = os.getenv("USE_AWS_BEDROCK", "true").lower() == "true"
-    AWS_PROFILE = os.getenv("AWS_PROFILE", "diligent")
+    AWS_PROFILE = os.getenv("AWS_PROFILE") or None  # Use None for IAM role, or specify profile name
     AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
     
     # Agent Configuration
