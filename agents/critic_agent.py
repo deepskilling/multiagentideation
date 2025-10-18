@@ -127,16 +127,60 @@ Your evaluations are:
             return ""
     
     def _build_evaluation_prompt(self, idea: SaaSIdea, search_context: str = "") -> str:
-        """Build prompt for evaluating an idea"""
+        """Build prompt for evaluating an idea with calibration examples"""
         
         # Add search context if available
         search_section = ""
         if search_context:
-            search_section = f"\n\n**Market Intelligence (from web search):**\n{search_context}\n\nUse this real-time market data to inform your evaluation, especially for novelty and market fit assessments."
+            search_section = f"\n\n**Market Intelligence (from web search):**\n{search_context}\n\n**COMPETITIVE ANALYSIS REQUIRED:**\nBased on the market intelligence above:\n1. Name 2-3 direct or adjacent competitors\n2. Compare this idea's novelty to those competitors\n3. Identify specific gaps in competitors that this idea fills\n4. Adjust your novelty and viability scores based on competitive density"
         
-        prompt = f"""Evaluate the following SaaS product idea on four dimensions:
+        prompt = f"""Evaluate the following SaaS product idea on four dimensions using calibrated scoring.
 
-**Product Idea:**
+**CALIBRATION EXAMPLES (for consistent scoring across all evaluations):**
+
+**NOVELTY CALIBRATION:**
+• Score 0.9 Example: "AI that predicts contract disputes 90 days in advance using NLP analysis of email sentiment and historical litigation patterns"
+  → Why: Novel application of NLP to non-obvious domain with predictive capability
+  
+• Score 0.5 Example: "Contract management with AI-powered search and OCR extraction"
+  → Why: Incremental improvement on existing solutions, AI is becoming commodity
+  
+• Score 0.2 Example: "Cloud-based document storage for legal contracts with folders"
+  → Why: Direct copycat of Dropbox/Box with zero differentiation
+
+**FEASIBILITY CALIBRATION:**
+• Score 0.9 Example: "Dashboard aggregating data from 3 APIs (Stripe, Salesforce, HubSpot) with custom analytics"
+  → Why: Well-documented APIs, proven integration patterns, 3-6 month build with 2-3 engineers
+  
+• Score 0.5 Example: "Real-time video collaboration platform with AR overlays for remote teams"
+  → Why: Cutting-edge tech, complex infrastructure, requires specialized ML expertise, 12+ month build
+  
+• Score 0.2 Example: "AGI-powered autonomous business strategy consultant that replaces C-suite executives"
+  → Why: Requires technology that doesn't exist yet, unclear path to implementation
+
+**MARKET FIT CALIBRATION:**
+• Score 0.9 Example: "Automated SOC 2 compliance for SaaS companies (saves $100K+ and 6 months vs manual)"
+  → Why: Hair-on-fire problem, quantified savings, clear buyer (CTO/CISO), urgent need
+  
+• Score 0.5 Example: "Employee engagement surveys with sentiment analysis"
+  → Why: Nice-to-have, not urgent, many alternatives exist, unclear ROI
+  
+• Score 0.2 Example: "Social network for left-handed developers to share code snippets"
+  → Why: Tiny niche, unclear problem, no willingness to pay
+
+**VIABILITY CALIBRATION:**
+• Score 0.9 Example: "API monitoring for financial services (high willingness to pay, network effects, compliance moat)"
+  → Why: Can charge $50K+/year, strong retention, defensible via compliance expertise
+  
+• Score 0.5 Example: "Project management tool for creative agencies"
+  → Why: Crowded market (Asana, Monday, etc.), hard to differentiate, low switching costs
+  
+• Score 0.2 Example: "Free note-taking app with no monetization plan"
+  → Why: No business model, commoditized product, unclear path to revenue
+
+---
+
+**Product Idea to Evaluate:**
 - Name: {idea.idea_name}
 - Problem: {idea.problem_statement}
 - Target User: {idea.target_user}
@@ -146,50 +190,69 @@ Your evaluations are:
 - Revenue Model: {idea.revenue_model}
 - Domain: {idea.domain}{search_section}
 
-**Evaluation Criteria:**
+---
 
-1. **Novelty (0.0 - 1.0)**: How innovative and unique is this idea?
-   - 0.0-0.3: Copycat or very common
-   - 0.4-0.6: Some novel aspects
-   - 0.7-0.9: Highly innovative
-   - 1.0: Groundbreaking
+**EVALUATION PROCESS (Think Through Each Dimension):**
 
-2. **Feasibility (0.0 - 1.0)**: How realistic is this to build and deploy?
-   - Consider technical complexity, resource requirements, time to market
-   - 0.0-0.3: Very difficult or impractical
-   - 0.4-0.6: Moderate challenges
-   - 0.7-0.9: Realistic and achievable
-   - 1.0: Straightforward implementation
+**1. NOVELTY (0.0 - 1.0):**
+Step 1: List 2-3 existing competitors or similar solutions
+Step 2: Identify what's truly NEW (not just "AI-powered" or "cloud-based")
+Step 3: Ask: "If this launched tomorrow, would competitors say 'we should have thought of that'?"
+Step 4: Compare to calibration examples above
+Your Score: ___
 
-3. **Market Fit (0.0 - 1.0)**: How well does this address a real market need?
-   - Consider problem significance, target user clarity, market size
-   - 0.0-0.3: Unclear or weak market need
-   - 0.4-0.6: Moderate market opportunity
-   - 0.7-0.9: Strong market demand
-   - 1.0: Critical, urgent market need
+**2. FEASIBILITY (0.0 - 1.0):**
+Step 1: Identify technical risks (scale, ML accuracy, complex integrations?)
+Step 2: Estimate team size needed (2 people? 20 people?)
+Step 3: Estimate time to MVP (3 months? 18 months?)
+Step 4: Ask: "Can a skilled 3-person team build this in 6-12 months with $500K?"
+Step 5: Compare to calibration examples
+Your Score: ___
 
-4. **Viability (0.0 - 1.0)**: How viable is this as a sustainable business?
-   - Consider revenue potential, competition, scalability, ROI
-   - 0.0-0.3: Weak business case
-   - 0.4-0.6: Moderate business potential
-   - 0.7-0.9: Strong business model
-   - 1.0: Exceptional business opportunity
+**3. MARKET FIT (0.0 - 1.0):**
+Step 1: Quantify the problem cost (hours wasted, revenue lost, risk incurred)
+Step 2: Estimate TAM (Total Addressable Market) - is it $100M+? $1B+?
+Step 3: Assess buyer urgency (hair-on-fire problem or nice-to-have?)
+Step 4: Ask: "Would customers pay $10K+/year for this solution?"
+Step 5: Compare to calibration examples
+Your Score: ___
+
+**4. VIABILITY (0.0 - 1.0):**
+Step 1: Calculate rough unit economics (CAC, LTV, gross margin)
+Step 2: Assess competitive moat (network effects? data advantage? switching costs?)
+Step 3: Identify GTM risks (how hard to acquire customers?)
+Step 4: Ask: "Can this realistically become a $50M+ ARR business in 5 years?"
+Step 5: Compare to calibration examples
+Your Score: ___
+
+---
 
 **Output Format (JSON):**
 {{
   "novelty": 0.X,
+  "novelty_confidence": "high|medium|low",
   "feasibility": 0.X,
+  "feasibility_confidence": "high|medium|low",
   "market_fit": 0.X,
+  "market_fit_confidence": "high|medium|low",
   "viability": 0.X,
-  "justification": "Detailed explanation covering all four dimensions, including strengths and weaknesses"
+  "viability_confidence": "high|medium|low",
+  "justification": "Detailed explanation covering all four dimensions with specific reasoning for each score. Reference competitors, technical challenges, market size, and business model. Cite calibration examples where applicable.",
+  "key_assumptions": ["3-4 critical assumptions your scores depend on"],
+  "red_flags": ["Any major concerns that could invalidate this idea"]
 }}
 
-Provide your evaluation now:"""
+**Confidence Levels:**
+- High: Based on clear evidence, well-established patterns, or market data
+- Medium: Requires assumptions but they're reasonable
+- Low: High uncertainty, needs significant validation
+
+Provide your calibrated evaluation now:"""
         
         return prompt
     
     def _parse_evaluation(self, response: str, idea: SaaSIdea) -> Evaluation:
-        """Parse evaluation response into Evaluation object"""
+        """Parse evaluation response into Evaluation object (with optional confidence fields)"""
         try:
             # Extract JSON from response
             response = response.strip()
@@ -200,13 +263,36 @@ Provide your evaluation now:"""
             
             eval_data = json.loads(response)
             
+            # Build justification with confidence levels and additional context
+            justification = eval_data.get("justification", "")
+            
+            # Add confidence levels if present
+            if any(k in eval_data for k in ["novelty_confidence", "feasibility_confidence", "market_fit_confidence", "viability_confidence"]):
+                justification += "\n\n**Confidence Levels:**\n"
+                for dim in ["novelty", "feasibility", "market_fit", "viability"]:
+                    conf_key = f"{dim}_confidence"
+                    if conf_key in eval_data:
+                        justification += f"- {dim.replace('_', ' ').title()}: {eval_data[conf_key]}\n"
+            
+            # Add key assumptions if present
+            if "key_assumptions" in eval_data and eval_data["key_assumptions"]:
+                justification += "\n**Key Assumptions:**\n"
+                for assumption in eval_data["key_assumptions"]:
+                    justification += f"- {assumption}\n"
+            
+            # Add red flags if present
+            if "red_flags" in eval_data and eval_data["red_flags"]:
+                justification += "\n**Red Flags:**\n"
+                for flag in eval_data["red_flags"]:
+                    justification += f"- {flag}\n"
+            
             evaluation = Evaluation(
                 idea_id=idea.idea_id,
                 novelty=float(eval_data["novelty"]),
                 feasibility=float(eval_data["feasibility"]),
                 market_fit=float(eval_data["market_fit"]),
                 viability=float(eval_data["viability"]),
-                justification=eval_data["justification"],
+                justification=justification.strip(),
                 evaluated_by=self.name
             )
             

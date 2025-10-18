@@ -22,17 +22,22 @@ class PainPointAgent(BaseAgent):
         self.use_web_search = use_web_search
         self.search_engine = get_search_engine() if use_web_search and config.SERPER_API_KEY else None
     
-    def execute(self, product_or_domain: str, competitor_products: Optional[List[str]] = None) -> Dict[str, Any]:
+    def execute(self, product_or_domain: str, competitor_products: Optional[List[str]] = None, use_react: bool = False) -> Dict[str, Any]:
         """
         Mine pain points for a product or domain
         
         Args:
             product_or_domain: Product name or domain to analyze
             competitor_products: Optional list of competitor products to analyze
+            use_react: If True, use ReAct (Reasoning + Acting) for dynamic search
             
         Returns:
             Dictionary with pain points, sources, and insights
         """
+        if use_react:
+            return self.execute_with_react(product_or_domain, competitor_products)
+        
+        # Original implementation (predefined searches)
         print(f"\n🔍 Mining customer pain points for: {product_or_domain}")
         
         # Collect pain points from multiple sources
@@ -73,6 +78,157 @@ class PainPointAgent(BaseAgent):
         }
         
         print(f"   ✅ Found {len(clustered.get('clusters', []))} pain point clusters")
+        
+        return result
+    
+    def execute_with_react(self, product_or_domain: str, competitor_products: Optional[List[str]] = None, max_iterations: int = 6) -> Dict[str, Any]:
+        """
+        Mine pain points using ReAct (Reasoning + Acting) loop for dynamic, adaptive search
+        
+        This enables the agent to:
+        - Reason about what it has learned
+        - Decide what to search for next dynamically
+        - Follow evidence trails to deeper insights
+        - Stop when sufficient high-quality data is gathered
+        
+        Args:
+            product_or_domain: Product name or domain to analyze
+            competitor_products: Optional list of competitor products to analyze
+            max_iterations: Maximum number of reasoning-action cycles (default: 6)
+            
+        Returns:
+            Dictionary with pain points, sources, reasoning traces, and insights
+        """
+        print(f"\n🔍 Mining customer pain points (ReAct Mode): {product_or_domain}")
+        print(f"   Using dynamic reasoning-action loop (max {max_iterations} iterations)\n")
+        
+        # Initialize state
+        all_pain_points = []
+        search_history = []
+        reasoning_traces = []
+        
+        for iteration in range(max_iterations):
+            print(f"━━━ Iteration {iteration + 1}/{max_iterations} ━━━")
+            
+            # ============================================
+            # STEP 1: THOUGHT (Reasoning)
+            # ============================================
+            thought_prompt = self._build_react_thought_prompt(
+                product_or_domain, 
+                all_pain_points, 
+                search_history,
+                iteration
+            )
+            
+            thought_response = self._call_llm(
+                prompt=thought_prompt,
+                temperature=0.4,
+                max_tokens=800
+            )
+            
+            try:
+                thought = self._parse_json_with_validation(thought_response)
+            except:
+                print(f"   ⚠️  Failed to parse thought, using fallback")
+                thought = self._fallback_thought(iteration, len(all_pain_points))
+            
+            print(f"💭 Thought: {thought.get('reasoning', 'No reasoning provided')[:200]}...")
+            print(f"   Confidence: {thought.get('confidence', 'unknown')}")
+            print(f"   Should continue: {thought.get('should_continue', False)}")
+            
+            reasoning_traces.append({
+                'iteration': iteration + 1,
+                'thought': thought
+            })
+            
+            # ============================================
+            # TERMINATION CHECK
+            # ============================================
+            if not thought.get('should_continue', False):
+                print(f"✅ Stopping: {thought.get('termination_reason', 'Goal achieved')}\n")
+                break
+            
+            # ============================================
+            # STEP 2: ACTION (Execute based on reasoning)
+            # ============================================
+            action = thought.get('action', {})
+            action_type = action.get('type', 'search')
+            
+            if action_type == 'search':
+                search_query = action.get('search_query', '')
+                search_source = action.get('search_source', 'general')
+                
+                print(f"🎬 Action: Searching '{search_query}' (source: {search_source})")
+                
+                # Execute search
+                results = self._targeted_search(search_query, search_source)
+                
+                # ============================================
+                # STEP 3: OBSERVATION (Analyze results)
+                # ============================================
+                if results:
+                    extracted = self._extract_pain_points(results, search_query)
+                    new_pain_points = extracted.get('pain_points', [])
+                    
+                    print(f"👁️  Observation: Found {len(new_pain_points)} new pain points from {len(results)} results")
+                    
+                    if new_pain_points:
+                        # Show preview of first pain point
+                        first_pp = new_pain_points[0]
+                        print(f"   Example: \"{first_pp.get('problem', 'N/A')[:100]}...\"")
+                    
+                    all_pain_points.extend(new_pain_points)
+                    search_history.append({
+                        'iteration': iteration + 1,
+                        'query': search_query,
+                        'source': search_source,
+                        'results_count': len(results),
+                        'pain_points_found': len(new_pain_points),
+                        'expected_insight': action.get('expected_insight', '')
+                    })
+                else:
+                    print(f"👁️  Observation: No results found for this query")
+                    search_history.append({
+                        'iteration': iteration + 1,
+                        'query': search_query,
+                        'source': search_source,
+                        'results_count': 0,
+                        'pain_points_found': 0
+                    })
+            
+            elif action_type == 'stop':
+                print(f"✅ Agent decided to stop: {action.get('reason', 'Sufficient data gathered')}\n")
+                break
+            
+            print()  # Blank line between iterations
+        
+        # ============================================
+        # FINAL SYNTHESIS
+        # ============================================
+        print(f"📊 Synthesis: Clustering and prioritizing {len(all_pain_points)} pain points...")
+        
+        if all_pain_points:
+            clustered = self._cluster_and_prioritize(all_pain_points, product_or_domain)
+        else:
+            print("   ⚠️  No pain points found. Using general analysis as fallback.")
+            clustered = self._generate_generic_pain_points(product_or_domain)
+        
+        result = {
+            'product_or_domain': product_or_domain,
+            'method': 'react',
+            'total_pain_points': len(all_pain_points),
+            'total_iterations': len(search_history),
+            'clustered_pain_points': clustered.get('clusters', []),
+            'top_pain_points': clustered.get('top_pain_points', []),
+            'search_history': search_history,
+            'reasoning_traces': reasoning_traces,
+            'summary': clustered.get('summary', '')
+        }
+        
+        print(f"\n✅ ReAct Mining Complete:")
+        print(f"   - Iterations: {len(search_history)}")
+        print(f"   - Pain points found: {len(all_pain_points)}")
+        print(f"   - Clusters identified: {len(clustered.get('clusters', []))}")
         
         return result
     
@@ -304,4 +460,167 @@ Output as JSON:
             output += f"  Features: {', '.join(cluster.get('potential_features', [])[:2])}\n\n"
         
         return output.strip()
+    
+    # ============================================
+    # ReAct Helper Methods
+    # ============================================
+    
+    def _build_react_thought_prompt(self, product_or_domain: str, pain_points: List[Dict], 
+                                     search_history: List[Dict], iteration: int) -> str:
+        """Build prompt for ReAct reasoning step"""
+        
+        # Format search history
+        history_text = ""
+        if search_history:
+            history_text = "**Previous Searches:**\n"
+            for h in search_history[-3:]:  # Last 3 searches
+                history_text += f"- Iteration {h['iteration']}: \"{h['query']}\" ({h['source']})\n"
+                history_text += f"  → Found {h['pain_points_found']} pain points from {h['results_count']} results\n"
+        else:
+            history_text = "**Previous Searches:** None (first iteration)\n"
+        
+        # Format current findings
+        findings_text = ""
+        if pain_points:
+            findings_text = f"**Pain Points Found So Far:** {len(pain_points)} total\n"
+            # Show sample of recent pain points
+            if len(pain_points) > 0:
+                findings_text += "**Recent Examples:**\n"
+                for pp in pain_points[-3:]:  # Last 3 pain points
+                    findings_text += f"- {pp.get('problem', 'Unknown')[:100]}\n"
+        else:
+            findings_text = "**Pain Points Found So Far:** 0 (need to start searching)\n"
+        
+        prompt = f"""You are mining customer pain points for: {product_or_domain}
+
+**Iteration:** {iteration + 1} of 6 maximum
+
+{history_text}
+
+{findings_text}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+**YOUR TASK:** Think strategically about what to do next.
+
+**Consider:**
+1. **Gaps:** What types of pain points are we missing?
+2. **Depth:** Do we need more specific/quantified details on existing pain points?
+3. **Sources:** Have we explored diverse sources (Reddit, G2, Twitter, news)?
+4. **Quality:** Are the pain points actionable and well-documented?
+5. **Convergence:** Are we seeing patterns that suggest we've found the key issues?
+6. **Sufficiency:** Do we have 15-20 high-quality, diverse pain points?
+
+**Stopping Criteria:**
+✓ Stop if: 15+ high-quality pain points with good diversity
+✓ Stop if: Last 2 searches yielded no new insights
+✓ Stop if: Clear patterns identified across multiple sources
+✓ Continue if: Major gaps in understanding, low diversity, or insufficient data
+
+**Output your reasoning as JSON:**
+{{
+  "reasoning": "Your detailed thought process about current state and next steps (2-3 sentences)",
+  "confidence": "high|medium|low - How confident are you in your current understanding?",
+  "gaps": ["What specific information or pain point categories are missing?"],
+  "should_continue": true/false,
+  "termination_reason": "Why stopping (only if should_continue is false)",
+  "action": {{
+    "type": "search|stop",
+    "search_query": "Specific, targeted search query (if type is 'search')",
+    "search_source": "reddit|g2|twitter|news|general",
+    "expected_insight": "What specific insight you expect to gain from this search"
+  }}
+}}
+
+**Examples of Good Reasoning:**
+
+Example 1 (Early iteration):
+{{
+  "reasoning": "We have no data yet. Need to start broad to understand main pain point categories.",
+  "confidence": "low",
+  "gaps": ["All pain point categories unknown"],
+  "should_continue": true,
+  "action": {{
+    "type": "search",
+    "search_query": "{product_or_domain} biggest problems complaints",
+    "search_source": "reddit",
+    "expected_insight": "Identify 3-5 main pain point themes"
+  }}
+}}
+
+Example 2 (Middle iteration):
+{{
+  "reasoning": "Found 8 pain points about 'integration complexity' but they're vague. Need quantified impact data.",
+  "confidence": "medium",
+  "gaps": ["Cost/time impact of integration issues", "Specific integration pain points"],
+  "should_continue": true,
+  "action": {{
+    "type": "search",
+    "search_query": "{product_or_domain} integration time cost hours",
+    "search_source": "g2",
+    "expected_insight": "Quantify integration pain with specific hours/costs"
+  }}
+}}
+
+Example 3 (Late iteration - stopping):
+{{
+  "reasoning": "Have 18 well-documented pain points across 4 major themes with quantified impacts. Clear patterns identified. Sufficient for synthesis.",
+  "confidence": "high",
+  "gaps": ["Minor: could explore niche use cases, but have core pain points covered"],
+  "should_continue": false,
+  "termination_reason": "Sufficient high-quality data across diverse sources. 18 pain points with clear patterns and quantified impacts."
+}}
+
+**Provide your reasoning now:**"""
+        
+        return prompt
+    
+    def _targeted_search(self, query: str, source: str = "general") -> List[Any]:
+        """Execute a targeted search based on source preference"""
+        if not self.search_engine:
+            return []
+        
+        try:
+            # Modify query based on source
+            if source == "reddit":
+                modified_query = f"{query} site:reddit.com"
+            elif source == "g2":
+                modified_query = f"{query} site:g2.com reviews"
+            elif source == "twitter":
+                modified_query = f"{query} site:twitter.com OR site:x.com"
+            elif source == "news":
+                modified_query = f"{query} news article"
+            else:
+                modified_query = query
+            
+            results = self.search_engine.search(modified_query, num_results=5)
+            return results
+            
+        except Exception as e:
+            print(f"   ⚠️  Search failed: {str(e)}")
+            return []
+    
+    def _fallback_thought(self, iteration: int, pain_points_count: int) -> Dict[str, Any]:
+        """Provide fallback thought if LLM response parsing fails"""
+        if pain_points_count < 10:
+            return {
+                "reasoning": f"Continuing search to gather more pain points (currently have {pain_points_count})",
+                "confidence": "medium",
+                "gaps": ["Need more pain point data"],
+                "should_continue": True,
+                "action": {
+                    "type": "search",
+                    "search_query": "customer complaints problems",
+                    "search_source": "general",
+                    "expected_insight": "Find additional pain points"
+                }
+            }
+        else:
+            return {
+                "reasoning": f"Have {pain_points_count} pain points, sufficient for analysis",
+                "confidence": "medium",
+                "gaps": [],
+                "should_continue": False,
+                "termination_reason": "Fallback termination after gathering sufficient data"
+            }
 

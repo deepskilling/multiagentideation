@@ -387,6 +387,175 @@ class BaseAgent(ABC):
         cls._total_output_tokens = 0
         cls._api_calls = 0
     
+    def _parse_json_with_validation(self, response: str, expected_schema: Optional[Dict[str, type]] = None) -> Dict[str, Any]:
+        """
+        Parse JSON from LLM response with validation and error recovery
+        
+        Args:
+            response: Raw LLM response string
+            expected_schema: Optional dictionary mapping field names to expected types
+                           Example: {"novelty": float, "features": list}
+        
+        Returns:
+            Parsed JSON dictionary
+        
+        Raises:
+            json.JSONDecodeError: If parsing fails after recovery attempts
+        """
+        try:
+            # Extract JSON from markdown code blocks
+            response = response.strip()
+            if "```json" in response:
+                response = response.split("```json")[1].split("```")[0].strip()
+            elif "```" in response:
+                response = response.split("```")[1].split("```")[0].strip()
+            
+            # Parse JSON
+            parsed = json.loads(response)
+            
+            # Validate against schema if provided
+            if expected_schema:
+                errors = self._validate_against_schema(parsed, expected_schema)
+                
+                if errors:
+                    self.log_message(f"JSON validation warnings:")
+                    for error in errors:
+                        self.log_message(f"  - {error}")
+                    
+                    # Attempt to auto-fix common issues
+                    parsed = self._auto_fix_json_errors(parsed, expected_schema, errors)
+            
+            return parsed
+            
+        except json.JSONDecodeError as e:
+            self.log_message(f"JSON parsing error: {e}")
+            self.log_message(f"Response (first 500 chars): {response[:500]}")
+            
+            # Attempt to fix common JSON issues
+            fixed_response = self._attempt_json_fix(response)
+            if fixed_response:
+                try:
+                    return json.loads(fixed_response)
+                except:
+                    pass
+            
+            raise json.JSONDecodeError(f"Failed to parse JSON after recovery attempts: {str(e)}", response, 0)
+        
+        except Exception as e:
+            self.log_message(f"Unexpected error parsing JSON: {e}")
+            raise
+    
+    def _validate_against_schema(self, data: Dict, schema: Dict[str, type]) -> list[str]:
+        """
+        Validate parsed JSON against expected schema
+        
+        Args:
+            data: Parsed JSON data
+            schema: Dictionary mapping field names to expected types
+        
+        Returns:
+            List of validation error messages (empty if valid)
+        """
+        errors = []
+        
+        for key, expected_type in schema.items():
+            if key not in data:
+                errors.append(f"Missing required field: {key}")
+            elif not isinstance(data[key], expected_type):
+                errors.append(f"Wrong type for '{key}': expected {expected_type.__name__}, got {type(data[key]).__name__}")
+        
+        return errors
+    
+    def _auto_fix_json_errors(self, data: Dict, schema: Dict[str, type], errors: list[str]) -> Dict:
+        """
+        Attempt to automatically fix common JSON validation errors
+        
+        Args:
+            data: Parsed JSON data with errors
+            schema: Expected schema
+            errors: List of error messages
+        
+        Returns:
+            Fixed JSON data (best effort)
+        """
+        fixed_data = data.copy()
+        
+        for key, expected_type in schema.items():
+            if key in fixed_data:
+                # Try to convert to expected type
+                if expected_type == list and isinstance(fixed_data[key], str):
+                    # Convert string to single-item list
+                    fixed_data[key] = [fixed_data[key]]
+                    self.log_message(f"  ✓ Auto-fixed: Converted '{key}' from string to list")
+                
+                elif expected_type == float and isinstance(fixed_data[key], str):
+                    # Convert string to float
+                    try:
+                        fixed_data[key] = float(fixed_data[key])
+                        self.log_message(f"  ✓ Auto-fixed: Converted '{key}' from string to float")
+                    except:
+                        fixed_data[key] = 0.5  # Default mid-range score
+                        self.log_message(f"  ⚠️ Auto-fixed: Set '{key}' to default 0.5")
+                
+                elif expected_type == int and isinstance(fixed_data[key], str):
+                    # Convert string to int
+                    try:
+                        fixed_data[key] = int(fixed_data[key])
+                        self.log_message(f"  ✓ Auto-fixed: Converted '{key}' from string to int")
+                    except:
+                        fixed_data[key] = 0
+                        self.log_message(f"  ⚠️ Auto-fixed: Set '{key}' to default 0")
+                
+                elif expected_type == str and not isinstance(fixed_data[key], str):
+                    # Convert to string
+                    fixed_data[key] = str(fixed_data[key])
+                    self.log_message(f"  ✓ Auto-fixed: Converted '{key}' to string")
+            
+            else:
+                # Add missing required fields with defaults
+                if expected_type == list:
+                    fixed_data[key] = []
+                elif expected_type == dict:
+                    fixed_data[key] = {}
+                elif expected_type == str:
+                    fixed_data[key] = ""
+                elif expected_type == float:
+                    fixed_data[key] = 0.5
+                elif expected_type == int:
+                    fixed_data[key] = 0
+                elif expected_type == bool:
+                    fixed_data[key] = False
+                
+                self.log_message(f"  ⚠️ Auto-fixed: Added missing field '{key}' with default value")
+        
+        return fixed_data
+    
+    def _attempt_json_fix(self, response: str) -> Optional[str]:
+        """
+        Attempt to fix common JSON syntax errors
+        
+        Args:
+            response: Raw JSON string with potential errors
+        
+        Returns:
+            Fixed JSON string or None if unfixable
+        """
+        # Remove common issues
+        fixed = response.strip()
+        
+        # Fix trailing commas
+        fixed = fixed.replace(',}', '}')
+        fixed = fixed.replace(',]', ']')
+        
+        # Fix missing quotes around unquoted keys (common LLM error)
+        import re
+        fixed = re.sub(r'(\s+)(\w+)(\s*:\s*)', r'\1"\2"\3', fixed)
+        
+        # Fix single quotes (JSON requires double quotes)
+        fixed = fixed.replace("'", '"')
+        
+        return fixed if fixed != response else None
+    
     def __str__(self):
         return f"{self.name} ({self.model})"
     

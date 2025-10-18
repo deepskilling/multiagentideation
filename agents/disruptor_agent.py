@@ -56,34 +56,138 @@ class DisruptorAgent(BaseAgent):
         return strategy(idea)
     
     def _disrupt_by_removing_constraints(self, idea: SaaSIdea) -> SaaSIdea:
-        """Disrupt by removing traditional constraints"""
-        prompt = f"""Take this SaaS idea and reimagine it by removing a major constraint:
+        """Disrupt by removing traditional constraints with Christensen's disruption theory"""
+        prompt = f"""Take this SaaS idea and reimagine it by removing a major constraint using disruption theory.
 
 **Original Idea: {idea.idea_name}**
 - Problem: {idea.problem_statement}
 - Features: {', '.join(idea.core_features)}
 - Target: {idea.target_user}
+- Domain: {idea.domain}
 
-**Disruption Strategy**: Remove major constraints
-Ask "What if..." and challenge assumptions:
-- What if it was completely free?
-- What if it required no setup or configuration?
-- What if it worked offline?
-- What if it needed no user data?
-- What if deployment took 30 seconds?
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Create a bold variation that removes a significant constraint and reimagines the product.
+**DISRUPTION THEORY (Clayton Christensen Framework):**
+
+Disruptive innovations typically:
+
+1. **Target Overserved Customers**
+   - Who doesn't need ALL the features incumbents offer?
+   - Who values simplicity/affordability over sophistication?
+   
+2. **Offer "Good Enough" Solutions**
+   - Meet core needs at 10x lower cost/complexity
+   - Trade some performance for accessibility
+   
+3. **Start in Neglected Segments**
+   - Non-consumers (people who can't use existing solutions)
+   - Overshot customers (those who pay for features they don't use)
+   - New market footholds (emerging segments)
+   
+4. **Compete on Different Dimensions**
+   - Incumbents compete on: Performance, features, enterprise capabilities
+   - Disruptors compete on: Simplicity, speed, affordability, accessibility
+
+**Classic Disruption Pattern:**
+- Incumbents move upmarket (more features, higher prices)
+- Disruptors enter low-end (simpler, cheaper)
+- Disruptors improve and move upmarket over time
+- Incumbents can't respond (profit margins too low)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+**CONSTRAINT REMOVAL ANALYSIS:**
+
+**Step 1: Identify constraints in current solutions (including this idea)**
+Ask:
+- What makes existing tools expensive? 
+  → Enterprise sales, complex setup, training, integrations
+  
+- What makes them slow? 
+  → Manual processes, approval workflows, custom implementations
+  
+- What makes them limited? 
+  → Data silos, platform lock-in, access restrictions, technical requirements
+
+**Step 2: Choose ONE critical constraint to remove**
+
+Examples of Disruptive Constraint Removals:
+
+✅ **Remove Integration Complexity:**
+- Traditional: Requires IT team to configure APIs and data mappings
+- Disruptive: Automatically reads existing data stores (no integration needed)
+- Impact: Deployment from 6 months → 30 minutes
+
+✅ **Remove Technical Requirements:**
+- Traditional: Requires dedicated infrastructure, security setup, admin training
+- Disruptive: Runs as browser extension, no infrastructure, zero setup
+- Impact: Open to 10x more users (no IT approval needed)
+
+✅ **Remove Cost Barrier:**
+- Traditional: $50K/year enterprise license
+- Disruptive: Open-source core + $99/month for hosting
+- Impact: Accessible to SMBs (95% of market can't afford traditional)
+
+✅ **Remove Expertise Requirement:**
+- Traditional: Requires data scientists to configure ML models
+- Disruptive: AI auto-configures based on your data
+- Impact: Non-technical users can use advanced features
+
+❌ **Don't Just Remove Randomly:**
+- Bad: "What if it was free?" (need revenue model)
+- Bad: "What if it needed no data?" (need data to provide value)
+- Good: "What if it needed no DATA INTEGRATION?" (data can live where it is)
+
+**Step 3: Redesign around that constraint removal**
+- What features become POSSIBLE?
+- What features become UNNECESSARY?
+- What new market opens up?
+
+**Step 4: Validate disruption feasibility**
+- Is the constraint removal technically possible TODAY?
+- Does it create real NEW value (not just reduce friction)?
+- Can you build a business around this (or is it just a feature)?
+- Is there a 10x improvement on some dimension?
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+**YOUR TASK:**
+
+Using the original idea as inspiration, create a disruptive variation by removing a constraint.
+
+Think through:
+1. What's the biggest barrier preventing 10x more people from using this type of product?
+2. Which constraint removal would create 10x improvement on SOME dimension (cost, speed, ease)?
+3. What becomes possible that wasn't before?
 
 Output as JSON:
 {{
   "idea_name": "Disrupted product name",
-  "problem_statement": "Refined problem statement",
-  "target_user": "Target user",
-  "core_features": ["Feature 1", "Feature 2", "Feature 3"],
-  "differentiator": "What makes this disruptive variation unique",
-  "tech_stack": ["Tech 1", "Tech 2"],
-  "revenue_model": "Subscription"
+  "problem_statement": "Refined problem that's accessible to more users",
+  "target_user": "Expanded target (who couldn't use the original?)",
+  "core_features": [
+    "Feature enabled by constraint removal",
+    "Simplified version of original feature",
+    "Feature 3"
+  ],
+  "differentiator": "Unlike [incumbents], we remove [constraint] by [approach], enabling [new capability]",
+  "tech_stack": ["Technology 1", "Technology 2"],
+  "revenue_model": "Freemium|Usage-Based (likely different from original)",
+  "disruption_analysis": {{
+    "constraint_removed": "Specific constraint eliminated",
+    "how_removed": "Technical approach to removing it",
+    "new_market_opened": "Who can now use this who couldn't before?",
+    "10x_dimension": "What is 10x better? (cost, speed, ease, access)",
+    "incumbent_weakness": "Why can't incumbents easily respond?"
+  }}
 }}
+
+**QUALITY CHECKS:**
+□ Is there a SPECIFIC constraint removed (not vague "more accessible")?
+□ Does removal enable 10x improvement on SOME dimension?
+□ Can you identify WHO specifically can now use this who couldn't before?
+□ Is the disruption technically feasible in 2025?
+□ Would incumbents struggle to copy this? (profit margins, architecture, business model)
 
 Your disruptive variation:"""
         

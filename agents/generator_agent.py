@@ -67,40 +67,81 @@ Your goal is to generate innovative, feasible, and market-ready SaaS product ide
 Always think creatively but practically."""
     
     def _build_prompt(self, domain: str, context: str, num_ideas: int) -> str:
-        """Build the prompt for idea generation"""
+        """Build the prompt for idea generation with few-shot examples"""
         prompt = f"""Generate {num_ideas} innovative SaaS product ideas in the {domain} domain.
 
 {f"Additional Context: {context}" if context else ""}
 
-For each idea, provide:
-1. **Idea Name**: A compelling product name
-2. **Problem Statement**: What specific pain point does this solve?
-3. **Target User**: Who is the primary customer? (be specific about role/persona)
-4. **Core Features**: List 3-5 essential features (as a JSON array)
-5. **Differentiator**: What makes this unique compared to existing solutions?
-6. **Tech Stack**: Recommended technologies (as a JSON array)
-7. **Revenue Model**: Choose from: Subscription, Freemium, Usage-Based, Perpetual License, or Hybrid
+**EXAMPLE OF A STRONG IDEA (use this as reference):**
+{{
+  "idea_name": "ContractIQ",
+  "problem_statement": "Mid-market companies waste 40+ hours/month manually tracking contract renewals, leading to $50K+ in missed savings opportunities and compliance risks from expired vendor agreements",
+  "target_user": "VP of Procurement and Legal Operations Managers at mid-market companies (500-5000 employees) managing 50-500 vendor contracts annually",
+  "core_features": [
+    "AI-powered contract ingestion that auto-extracts key dates, obligations, and spend data",
+    "Proactive renewal alerts with cost optimization recommendations",
+    "Compliance risk dashboard with auto-flagging of regulatory violations",
+    "Vendor benchmarking and spend analytics"
+  ],
+  "differentiator": "Unlike generic CLM tools, ContractIQ is purpose-built for mid-market teams with AI that learns company-specific contract patterns and provides actionable cost-saving recommendations, not just storage",
+  "tech_stack": ["Python/FastAPI", "PostgreSQL", "OpenAI GPT-4", "React", "AWS"],
+  "revenue_model": "Subscription"
+}}
+
+**WHY THIS IS STRONG:**
+- Problem is QUANTIFIED: $50K savings, 40+ hours wasted (specific numbers)
+- Target user is HYPER-SPECIFIC: exact role, company size (500-5000), contract volume (50-500)
+- Differentiator COMPARES to alternatives: "Unlike generic CLM tools..." and explains "why us"
+- Features are OUTCOME-FOCUSED: what the user achieves, not just technical capabilities
+- Tech stack is REALISTIC and MODERN: proven technologies that work together
+
+---
+
+**YOUR TASK - Generate {num_ideas} ideas following this quality standard:**
+
+For EACH idea, follow this process:
+
+**STEP 1 - Identify a Painful Problem:**
+- What specific workflow is broken or inefficient?
+- What does it cost in time/money/risk? (QUANTIFY IT)
+- Why haven't existing solutions fixed this?
+
+**STEP 2 - Define the User (Be Hyper-Specific):**
+- Exact role/title (not generic "enterprise" or "developer")
+- Company size and industry characteristics
+- Volume/scale they operate at (e.g., "managing 50-500 contracts")
+- Their decision-making authority
+
+**STEP 3 - Design the Solution:**
+- What ONE core insight makes this different?
+- What specific features deliver that insight?
+- Why can't competitors easily copy this?
+
+**STEP 4 - Validate Business Viability:**
+- Is the problem expensive enough that users will pay?
+- Can this be built in 6-12 months?
+- Is there a clear path to $10M+ ARR?
 
 Output your response as a valid JSON array with this exact structure:
 [
   {{
     "idea_name": "Product Name",
-    "problem_statement": "Description of the problem",
-    "target_user": "Specific user persona",
-    "core_features": ["Feature 1", "Feature 2", "Feature 3"],
-    "differentiator": "What makes this unique",
-    "tech_stack": ["Technology 1", "Technology 2"],
+    "problem_statement": "Description with QUANTIFIED impact (time, money, risk)",
+    "target_user": "SPECIFIC role at SPECIFIC company size with SPECIFIC volume/scale",
+    "core_features": ["Outcome-focused feature 1", "Outcome-focused feature 2", "Feature 3"],
+    "differentiator": "Unlike [competitor], we [unique approach] because [why it matters]",
+    "tech_stack": ["Technology 1", "Technology 2", "Technology 3"],
     "revenue_model": "Subscription"
   }}
 ]
 
-Focus on:
-- Real enterprise pain points that cost time/money
-- Solutions that leverage AI, automation, or modern cloud capabilities
-- Clear value propositions
-- Practical, buildable solutions
+**QUALITY CHECKS (before finalizing):**
+□ Does the problem statement include NUMBERS (hours, dollars, or risks)?
+□ Is the target_user SPECIFIC (role + company size + volume/scale)?
+□ Does the differentiator COMPARE to existing solutions (not just say "AI-powered")?
+□ Are features OUTCOME-focused ("reduce X by Y%"), not technology-focused?
 
-Generate {num_ideas} ideas now:"""
+Generate {num_ideas} high-quality ideas now:"""
         
         return prompt
     

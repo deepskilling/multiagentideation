@@ -12,6 +12,7 @@ from core.orchestrator import CreativityOrchestrator
 from core.models import Domain
 from core.web_search import get_search_engine
 from agents.base_agent import BaseAgent
+from core.validation_metrics import IdeaQualityMetrics, PromptPerformanceTracker
 
 
 def main():
@@ -135,17 +136,62 @@ def main():
             print("📋 GENERATED IDEAS")
             print("=" * 80)
             
+            # Compute automatic quality metrics
+            metrics_calculator = IdeaQualityMetrics()
+            all_auto_scores = []
+            all_critic_scores = []
+            
             for i, result in enumerate(results[:5], 1):
                 idea = result['idea']
                 eval = result['evaluation']
                 
+                # Compute automated quality metrics
+                from core.models import SaaSIdea
+                idea_obj = SaaSIdea(
+                    idea_name=idea['idea_name'],
+                    problem_statement=idea['problem_statement'],
+                    target_user=idea['target_user'],
+                    core_features=idea['core_features'],
+                    differentiator=idea['differentiator'],
+                    tech_stack=idea.get('tech_stack', []),
+                    revenue_model=idea.get('revenue_model', 'Subscription'),
+                    domain=idea.get('domain', Domain.CLOUD)
+                )
+                auto_metrics = metrics_calculator.compute_all_metrics(idea_obj)
+                all_auto_scores.append(auto_metrics['composite_score'])
+                all_critic_scores.append(eval['composite_score'])
+                
                 print(f"\n{i}. {idea['idea_name']}")
-                print(f"   Score: {eval['composite_score']:.3f} "
+                print(f"   Critic Score: {eval['composite_score']:.3f} "
                       f"(N:{eval['novelty']:.2f} F:{eval['feasibility']:.2f} "
                       f"M:{eval['market_fit']:.2f} V:{eval['viability']:.2f})")
+                print(f"   Auto Metrics: {auto_metrics['composite_score']:.3f} "
+                      f"(Spec:{auto_metrics['specificity_score']:.2f} Quant:{auto_metrics['quantification_score']:.2f} "
+                      f"Diff:{auto_metrics['differentiation_score']:.2f})")
                 print(f"   Problem: {idea['problem_statement'][:100]}...")
                 print(f"   Target: {idea['target_user']}")
                 print(f"   Differentiator: {idea['differentiator'][:80]}...")
+            
+            # Display aggregate quality metrics
+            if all_auto_scores:
+                avg_auto = sum(all_auto_scores) / len(all_auto_scores)
+                avg_critic = sum(all_critic_scores) / len(all_critic_scores)
+                
+                print(f"\n" + "=" * 80)
+                print("📊 QUALITY METRICS SUMMARY")
+                print("=" * 80)
+                print(f"Average Automated Quality Score: {avg_auto:.3f} "
+                      f"({metrics_calculator.get_score_interpretation(avg_auto)})")
+                print(f"Average Critic Score: {avg_critic:.3f} "
+                      f"({metrics_calculator.get_score_interpretation(avg_critic)})")
+                print(f"Ideas Shown: {len(all_auto_scores)} of {len(results)}")
+                
+                # Quality interpretation guide
+                print(f"\n📈 Score Interpretation:")
+                print(f"   • 0.8+ = Excellent (production-ready)")
+                print(f"   • 0.7-0.8 = Good (minor refinements)")
+                print(f"   • 0.6-0.7 = Acceptable (needs improvement)")
+                print(f"   • < 0.6 = Needs significant work")
             
             # Save results
             if args.output:

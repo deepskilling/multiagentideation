@@ -155,8 +155,8 @@ Your analysis:"""
         return pairs
     
     def _merge_ideas(self, idea1: SaaSIdea, idea2: SaaSIdea) -> SaaSIdea:
-        """Merge two ideas into a synthesized hybrid"""
-        prompt = f"""Merge these two SaaS product ideas into a single, superior hybrid product:
+        """Merge two ideas into a synthesized hybrid with synthesis framework"""
+        prompt = f"""Merge these two SaaS product ideas into a single, superior hybrid product using synthesis principles.
 
 **Idea 1: {idea1.idea_name}**
 - Problem: {idea1.problem_statement}
@@ -172,24 +172,110 @@ Your analysis:"""
 - Differentiator: {idea2.differentiator}
 - Tech Stack: {', '.join(idea2.tech_stack)}
 
-Create a merged product that:
-1. Combines the best features from both
-2. Addresses both problem spaces cohesively
-3. Creates new value from the combination
-4. Has a unified, compelling vision
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Output as JSON:
+**SYNTHESIS PRINCIPLES (Critical - Follow These):**
+
+**1. COMPLEMENTARY, NOT ADDITIVE:**
+❌ BAD: "Does everything Idea 1 does + everything Idea 2 does" 
+   → This creates feature bloat and confused value proposition
+
+✅ GOOD: "Solves Idea 1's core problem using Idea 2's unique approach"
+   → This creates focused value through synergy
+
+**Example:**
+- Idea 1: Contract management with alerts
+- Idea 2: Spend analytics with cost optimization
+- ❌ Bad Merge: "Contract management + spend analytics" (two separate tools)
+- ✅ Good Merge: "Contract intelligence that automatically identifies savings opportunities by analyzing renewal patterns and market benchmarks"
+
+**2. 1 + 1 = 3 (SYNERGY TEST):**
+The merged product should create NEW value not available in either original idea.
+
+Ask yourself: "What becomes possible when these capabilities are combined?"
+
+**Example:**
+- Idea 1: Email sentiment analysis
+- Idea 2: Contract dispute prediction
+- Synergy: Predict disputes 90 days early by analyzing email sentiment + contract terms
+- New Value: Early warning system (neither idea had this alone)
+
+**3. UNIFIED USER JOURNEY:**
+Don't create two separate workflows side-by-side. Create ONE cohesive experience.
+
+❌ BAD: "Users can do Task A (from Idea 1) OR Task B (from Idea 2)"
+✅ GOOD: "Users complete Task A which automatically triggers Task B as part of the same workflow"
+
+**4. TARGET USER CONVERGENCE:**
+If target users differ, find the overlap or pick the more valuable segment. Don't try to serve two masters.
+
+❌ BAD: "For legal teams AND finance teams"
+✅ GOOD: "For legal operations teams with procurement responsibilities"
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+**YOUR SYNTHESIS PROCESS:**
+
+**Step 1: Identify the Synergy**
+- What unique capability does Idea 1 have? → [Answer]
+- What unique capability does Idea 2 have? → [Answer]
+- How do they amplify each other? → [Answer]
+- What NEW capability emerges from combination? → [Answer]
+
+**Step 2: Define Unified Value Proposition**
+- What problem does the MERGED idea solve? (Not "Problem 1 + Problem 2")
+- Why is it better than using both separately?
+- Can you explain it in ONE sentence?
+
+**Step 3: Eliminate Redundancies**
+- What features from each idea can be CUT without losing value?
+- Which features from both ideas do the same thing?
+- Keep only features that contribute to the synergy
+
+**Step 4: Create Emergent Features**
+- What becomes possible when you combine these capabilities?
+- What features should exist ONLY in the merged product?
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+**ANTI-PATTERNS TO AVOID:**
+
+❌ "This product combines X and Y" (vague, no synergy)
+❌ "For user group A AND user group B" (no focus)
+❌ Features: [all 10 features from both ideas] (feature bloat)
+❌ Differentiator just lists both differentiators (no new unique value)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+**OUTPUT FORMAT:**
+
 {{
-  "idea_name": "New hybrid product name",
-  "problem_statement": "Unified problem statement",
-  "target_user": "Target user persona",
-  "core_features": ["Feature 1", "Feature 2", "Feature 3", "Feature 4"],
-  "differentiator": "What makes this hybrid unique",
-  "tech_stack": ["Tech 1", "Tech 2", "Tech 3"],
-  "revenue_model": "Subscription"
+  "idea_name": "New hybrid name that reflects the synergy, not just 'X + Y'",
+  "problem_statement": "UNIFIED problem (not Problem 1 + Problem 2). Describe the combined pain point.",
+  "target_user": "SPECIFIC converged user persona (pick primary segment, not 'A and B')",
+  "core_features": [
+    "Emergent Feature 1 (exists ONLY in merged product due to synergy)",
+    "Best of Idea 1 Feature (enhanced by Idea 2's capability)",
+    "Best of Idea 2 Feature (enhanced by Idea 1's capability)",
+    "Feature 4 (no redundant features - each must add unique value)"
+  ],
+  "differentiator": "Explain the SYNERGY: 'By combining [capability 1] with [capability 2], we achieve [new outcome] that neither could do alone'",
+  "tech_stack": ["Combined tech stack - remove duplicates"],
+  "revenue_model": "Subscription",
+  "synergy_explanation": "Explicitly state what NEW value emerges from combining these ideas",
+  "merged_workflow": "Describe the UNIFIED user workflow in 2-3 sentences"
 }}
 
-Your synthesized idea:"""
+**QUALITY CHECKS (before finalizing):**
+□ Does the merged idea have a SINGLE, clear value proposition? (Not "does X and Y")
+□ Is the target user MORE specific than either original? (Not "both personas")
+□ Do features work together in one workflow? (Not separate feature lists)
+□ Can you explain in ONE sentence why this is better than using both separately?
+□ Does the differentiator explain SYNERGY, not just list both differentiators?
+
+If any check fails, revise your synthesis.
+
+**Now provide your synthesized idea:**"""
         
         try:
             response = self._call_llm(

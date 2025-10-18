@@ -98,43 +98,143 @@ Generate a JSON object with:
         return self._parse_json_response(response)
     
     def _generate_features(self, idea: SaaSIdea) -> Dict[str, Any]:
-        """Generate features and UX section"""
+        """Generate features and UX section with prioritization framework"""
         features_str = ', '.join(idea.core_features)
-        prompt = f"""For the SaaS product "{idea.idea_name}", create detailed feature specifications.
+        prompt = f"""For the SaaS product "{idea.idea_name}", create detailed feature specifications using a strict prioritization framework.
 
 **Context:**
 - Core Features: {features_str}
 - Target User: {idea.target_user}
 - Differentiator: {idea.differentiator}
 
+---
+
+**PRIORITIZATION FRAMEWORK (Critical - Use This for All Features):**
+
+**P0 (Must Have for MVP) - MAXIMUM 3-4 Features:**
+✓ Criteria: Without this, the core value proposition FAILS completely
+✓ Test: "Would users pay for the product without this feature?" → If NO, then P0
+✓ Examples: 
+  - Authentication & user management
+  - The ONE core workflow that delivers the main value
+  - Basic reporting/dashboard (if critical to value)
+  
+❌ NOT P0: Advanced analytics, integrations, customization, collaboration features
+
+**P1 (Should Have - 1-3 months post-MVP) - 3-5 Features:**
+✓ Criteria: Significantly enhances value, but product works without it
+✓ Test: "Would users still pay, but strongly recommend we add this?" → If YES, then P1
+✓ Examples:
+  - Key integrations (Slack, Salesforce, etc.)
+  - Advanced analytics and reporting
+  - Collaboration features
+  - Notifications and alerts
+
+**P2 (Nice to Have - 3-6+ months post-MVP) - List Briefly:**
+✓ Criteria: Improves experience but doesn't significantly affect adoption/retention
+✓ Test: "Would 5% or fewer users care if this is missing?" → If YES, then P2
+✓ Examples:
+  - Customization (themes, branding)
+  - White-labeling
+  - Advanced filters and search
+  - Mobile app (if web works)
+
+---
+
+**COMMON PRIORITIZATION MISTAKES TO AVOID:**
+
+❌ BAD: "AI-powered insights (P0), dashboard (P0), 15 integrations (P0), collaboration (P0), mobile app (P0)"
+   → This is NOT a Minimum Viable Product - it's a 12-month roadmap labeled as MVP
+
+✅ GOOD: "Dashboard with core metrics (P0), 3 critical integrations (P0), AI insights (P1), 12 more integrations (P2), mobile app (P2)"
+   → True MVP focuses on proving the core value
+
+---
+
+**YOUR TASK:**
+
+Step 1: Identify 3-4 P0 features (maximum! Be ruthless)
+Step 2: Identify 3-5 P1 features  
+Step 3: List 2-3 P2 features briefly
+
+For **P0 features only**, provide:
+- Detailed description (3-4 sentences explaining WHAT it does and WHY it's P0)
+- User story with specific persona from target user
+- 3-4 acceptance criteria in Given/When/Then format
+- Effort estimate: S (1-2 weeks), M (3-5 weeks), L (6+ weeks)
+- Why this CANNOT wait for post-MVP
+
+For **P1/P2 features**, provide:
+- Brief description (1-2 sentences)
+- Why this isn't P0 (what can users do without it?)
+- Estimated timeline after MVP launch
+
 Generate a JSON object with:
 {{
   "mvp_features": [
     {{
       "name": "Feature name",
-      "description": "Detailed description (3-4 sentences) of what it does and why it matters",
-      "user_story": "As a [specific user], I want to [specific action] so that [specific benefit]",
-      "acceptance_criteria": ["Given [context], when [action], then [result]" - 2-3 criteria],
-      "priority": "P0 (Must have for MVP)",
-      "effort": "S/M/L with justification"
+      "description": "Detailed description (3-4 sentences) of what it does and why it's P0",
+      "user_story": "As a [specific user from target persona], I want to [specific action] so that [specific measurable benefit]",
+      "acceptance_criteria": [
+        "Given [context], when [action], then [result]",
+        "Given [context], when [action], then [result]",
+        "Given [context], when [action], then [result]"
+      ],
+      "priority": "P0",
+      "effort": "S/M/L",
+      "effort_justification": "Why this effort level",
+      "why_p0": "Why this MUST be in MVP (1 sentence)"
     }}
   ],
-  "future_features": [
+  "post_mvp_features": [
+    {{
+      "name": "Feature name",
+      "description": "Brief description (1-2 sentences)",
+      "priority": "P1",
+      "timeline": "Month 1-3 post-MVP",
+      "why_not_p0": "What users can do without this in MVP",
+      "value_add": "How this enhances the product"
+    }},
     {{
       "name": "Feature name",
       "description": "Brief description",
-      "priority": "P1/P2",
-      "rationale": "Why this matters post-MVP"
+      "priority": "P2",
+      "timeline": "Month 3-6 post-MVP",
+      "why_not_p0": "Why this is nice-to-have"
     }}
   ],
   "user_experience": {{
-    "key_workflows": ["3-5 critical user workflows with brief steps"],
-    "design_principles": ["4-6 core UX principles guiding the design"],
-    "accessibility": ["3-4 key accessibility requirements"]
+    "key_workflows": [
+      "Workflow 1: Step-by-step description of critical user journey",
+      "Workflow 2: ...",
+      "Workflow 3: ..."
+    ],
+    "design_principles": [
+      "Principle 1: Specific guideline (e.g., 'Every action completes in <3 clicks')",
+      "Principle 2: ...",
+      "Principle 3: ..."
+    ],
+    "accessibility": [
+      "WCAG 2.1 AA compliance for all interactive elements",
+      "Keyboard navigation support",
+      "Screen reader compatibility",
+      "Color contrast ratios > 4.5:1"
+    ]
+  }},
+  "mvp_validation": {{
+    "total_p0_features": 3,
+    "estimated_build_time": "3-6 months with 3-person team",
+    "rationale": "Why this is a true MVP that proves core value"
   }}
 }}
 
-Include 5-6 detailed MVP features and 3-4 future features."""
+**FINAL CHECK before generating:**
+- Count P0 features → Should be 3-4 MAX (if more, you're building too much)
+- For each P0, ask: "Would users get ZERO value without this?" → If not, demote to P1
+- Estimated MVP build time with P0 only → Should be 3-6 months, not 12+
+
+Generate the feature specification now:"""
         
         response = self._call_llm(prompt, self._build_system_message(), temperature=0.7, max_tokens=5000)
         return self._parse_json_response(response)
