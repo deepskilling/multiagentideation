@@ -34,19 +34,35 @@ class GeneratorAgent(BaseAgent):
         system_message = self._build_system_message()
         
         self.log_message(f"Generating {num_ideas} ideas for domain: {domain}")
+        print(f"      🔍 Generator: Calling LLM with temperature=0.8, max_tokens=4000")
         
-        response = self._call_llm(
-            prompt=prompt,
-            system_message=system_message,
-            temperature=0.8,  # Higher temperature for creativity
-            max_tokens=4000
-        )
-        
-        # Parse the response and create SaaSIdea objects
-        ideas = self._parse_response(response, domain)
-        
-        self.log_message(f"Successfully generated {len(ideas)} ideas")
-        return ideas
+        try:
+            response = self._call_llm(
+                prompt=prompt,
+                system_message=system_message,
+                temperature=0.8,  # Higher temperature for creativity
+                max_tokens=4000
+            )
+            
+            print(f"      ✓ Generator: Received response ({len(response)} chars)")
+            
+            # Parse the response and create SaaSIdea objects
+            ideas = self._parse_response(response, domain)
+            
+            if len(ideas) == 0:
+                print(f"      ⚠️  Generator: Parsing returned 0 ideas!")
+                print(f"      📄 Response preview (first 500 chars):")
+                print(f"         {response[:500]}")
+            else:
+                print(f"      ✓ Generator: Successfully parsed {len(ideas)} ideas")
+            
+            self.log_message(f"Successfully generated {len(ideas)} ideas")
+            return ideas
+            
+        except Exception as e:
+            print(f"      ❌ Generator: Exception during execution: {type(e).__name__}: {e}")
+            self.log_message(f"Error in execute: {e}")
+            return []
     
     def _build_system_message(self) -> str:
         """Build the system message for the LLM"""
@@ -166,8 +182,9 @@ Generate {num_ideas} high-quality ideas now:"""
                     # Map domain string to enum
                     domain_enum = self._map_domain(domain)
                     
-                    # Map revenue model to enum
-                    revenue_model = RevenueModel(idea_data.get("revenue_model", "Subscription"))
+                    # Map revenue model to enum (extract base model from detailed string)
+                    revenue_model_str = idea_data.get("revenue_model", "Subscription")
+                    revenue_model = self._extract_revenue_model(revenue_model_str)
                     
                     idea = SaaSIdea(
                         idea_name=idea_data["idea_name"],
@@ -181,16 +198,55 @@ Generate {num_ideas} high-quality ideas now:"""
                     )
                     ideas.append(idea)
                 except Exception as e:
+                    print(f"      ⚠️  Failed to parse individual idea: {type(e).__name__}: {e}")
                     self.log_message(f"Error parsing individual idea: {e}")
                     continue
                     
         except json.JSONDecodeError as e:
+            print(f"      ❌ JSON parsing error: {e}")
+            print(f"      📄 Response was: {response[:500]}")
             self.log_message(f"JSON parsing error: {e}")
             self.log_message(f"Response was: {response[:500]}")
         except Exception as e:
+            print(f"      ❌ Unexpected error parsing response: {type(e).__name__}: {e}")
+            print(f"      📄 Response preview: {response[:300] if response else 'None'}")
             self.log_message(f"Unexpected error parsing response: {e}")
         
         return ideas
+    
+    def _extract_revenue_model(self, revenue_str: str) -> RevenueModel:
+        """Extract base revenue model from detailed string
+        
+        Handles cases like:
+        - "Subscription (percentage of cloud spend saved)" -> "Subscription"
+        - "Usage-Based (per API call)" -> "Usage-Based"
+        """
+        # Extract the part before the first parenthesis or use the whole string
+        base_model = revenue_str.split('(')[0].strip()
+        
+        # Try to match to known revenue models (case-insensitive)
+        model_mapping = {
+            "subscription": RevenueModel.SUBSCRIPTION,
+            "freemium": RevenueModel.FREEMIUM,
+            "usage-based": RevenueModel.USAGE_BASED,
+            "usage based": RevenueModel.USAGE_BASED,
+            "perpetual": RevenueModel.PERPETUAL,
+            "perpetual license": RevenueModel.PERPETUAL,
+            "hybrid": RevenueModel.HYBRID,
+        }
+        
+        # Try exact match first
+        if base_model in RevenueModel._value2member_map_:
+            return RevenueModel(base_model)
+        
+        # Try case-insensitive mapping
+        base_lower = base_model.lower()
+        if base_lower in model_mapping:
+            return model_mapping[base_lower]
+        
+        # Default to Subscription
+        print(f"      ⚠️  Unknown revenue model '{revenue_str}', defaulting to Subscription")
+        return RevenueModel.SUBSCRIPTION
     
     def _map_domain(self, domain_str: str) -> Domain:
         """Map domain string to Domain enum"""
