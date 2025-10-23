@@ -291,7 +291,7 @@ def main():
                 print(f"   Iteration {i:2d}: {bar} {score:.3f}")
             
             print(f"\n💾 Results saved to: {report['output_file']}")
-            print(f"💾 Database: {report['database_path']}")
+            # print(f"💾 Database: {report['database_path']}")
             
             # Show error recovery statistics
             from core.error_recovery import get_error_recovery_engine

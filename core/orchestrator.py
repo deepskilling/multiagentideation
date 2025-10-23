@@ -74,6 +74,9 @@ class CreativityOrchestrator:
         print(f"   Initial Ideas: {initial_ideas}")
         print("=" * 60)
         
+        # Clear previous run data from database (auto-cleanup, silent)
+        self._clear_previous_run()
+        
         # Update system state
         self._update_system_state(domain)
         
@@ -109,8 +112,18 @@ class CreativityOrchestrator:
                 self.converged = True
                 break
         
-        # Generate final report
+        # Generate final report and auto-export to timestamped JSON
         final_report = self._generate_final_report()
+        
+        # Auto-save to timestamped JSON file
+        from datetime import datetime
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        timestamped_file = config.REPORTS_DIR / f"run_{timestamp}.json"
+        latest_file = config.REPORTS_DIR / "latest_run.json"
+        
+        # Export to both timestamped and latest files
+        self.db.export_top_ideas_to_json(timestamped_file, k=50)
+        self.db.export_top_ideas_to_json(latest_file, k=50)
         
         print("\n" + "=" * 60)
         print("🏁 CREATIVE LOOP COMPLETE")
@@ -118,6 +131,9 @@ class CreativityOrchestrator:
         print(f"Total Iterations: {self.current_iteration}")
         print(f"Total Ideas Generated: {self.total_ideas}")
         print(f"Best Score Achieved: {self.best_score:.3f}")
+        print(f"\n💾 Results auto-saved to:")
+        print(f"   📁 {timestamped_file.name}")
+        print(f"   📄 latest_run.json")
         
         return final_report
     
@@ -229,6 +245,27 @@ class CreativityOrchestrator:
         )
         
         return iteration_result
+    
+    def _clear_previous_run(self):
+        """Clear previous run data from database (for fresh start each run)"""
+        try:
+            # Drop and recreate iterations table to ensure clean schema
+            self.db.conn.execute("DROP TABLE IF EXISTS iterations")
+            self.db.conn.execute("""
+                CREATE TABLE iterations (
+                    iteration_number INTEGER PRIMARY KEY,
+                    generated_count INTEGER NOT NULL,
+                    top_ideas JSON NOT NULL,
+                    best_score DOUBLE NOT NULL,
+                    strategist_notes TEXT,
+                    should_continue BOOLEAN NOT NULL,
+                    created_at TIMESTAMP NOT NULL
+                )
+            """)
+            self.db.conn.commit()
+        except Exception as e:
+            # Silent fail - not critical
+            pass
     
     def _update_system_state(self, domain: Optional[str] = None):
         """Update system state in database"""
