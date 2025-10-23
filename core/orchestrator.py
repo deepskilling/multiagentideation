@@ -172,9 +172,12 @@ class CreativityOrchestrator:
             print(f"        {i}. {idea.idea_name} (Score: {eval.composite_score:.3f})")
         
         # Update best score
-        best_eval = max(evaluations, key=lambda e: e.composite_score)
-        if best_eval.composite_score > self.best_score:
-            self.best_score = best_eval.composite_score
+        if evaluations:
+            best_eval = max(evaluations, key=lambda e: e.composite_score)
+            if best_eval.composite_score > self.best_score:
+                self.best_score = best_eval.composite_score
+        else:
+            print(f"      ⚠️  Warning: No evaluations generated in this iteration")
         
         # Step 5: Synthesize (merge complementary ideas)
         print("  5️⃣  Synthesizer: Merging ideas...")

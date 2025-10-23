@@ -135,16 +135,23 @@ class IdeaDatabase:
         
         eval_id = str(uuid.uuid4())
         
+        # Convert numpy types to Python native types for DuckDB compatibility
+        def to_native(val):
+            """Convert numpy types to Python native types"""
+            if hasattr(val, 'item'):  # numpy scalar
+                return val.item()
+            return float(val) if isinstance(val, (int, float)) else val
+        
         self.conn.execute("""
             INSERT INTO evaluations VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, [
             eval_id,
             evaluation.idea_id,
-            evaluation.novelty,
-            evaluation.feasibility,
-            evaluation.market_fit,
-            evaluation.viability,
-            evaluation.composite_score,
+            to_native(evaluation.novelty),
+            to_native(evaluation.feasibility),
+            to_native(evaluation.market_fit),
+            to_native(evaluation.viability),
+            to_native(evaluation.composite_score),
             evaluation.justification,
             evaluation.evaluated_at,
             evaluation.evaluated_by
@@ -230,7 +237,7 @@ class IdeaDatabase:
     def insert_iteration_result(self, result: IterationResult):
         """Store iteration results"""
         self.conn.execute("""
-            INSERT INTO iterations VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO iterations VALUES (?, ?, ?, ?, ?, ?, ?)
         """, [
             result.iteration_number,
             len(result.generated_ideas),
