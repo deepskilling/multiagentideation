@@ -236,13 +236,21 @@ class IdeaDatabase:
     
     def insert_iteration_result(self, result: IterationResult):
         """Store iteration results"""
+        # Convert numpy types to Python native types
+        def to_native(val):
+            if hasattr(val, 'item'):  # numpy scalar
+                return val.item()
+            return float(val) if isinstance(val, (int, float)) else val
+        
+        best_score = max([e.composite_score for e in result.evaluations]) if result.evaluations else 0.0
+        
         self.conn.execute("""
             INSERT INTO iterations VALUES (?, ?, ?, ?, ?, ?, ?)
         """, [
             result.iteration_number,
             len(result.generated_ideas),
             json.dumps(result.top_ideas),
-            max([e.composite_score for e in result.evaluations]) if result.evaluations else 0.0,
+            to_native(best_score),
             result.strategist_notes,
             result.should_continue,
             datetime.utcnow()

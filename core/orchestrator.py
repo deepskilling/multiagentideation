@@ -93,7 +93,12 @@ class CreativityOrchestrator:
             
             print(f"\n📊 Iteration {iteration} Summary:")
             print(f"   Ideas Generated: {len(iteration_result.generated_ideas)}")
-            print(f"   Best Score: {max(e.composite_score for e in iteration_result.evaluations):.3f}")
+            
+            if iteration_result.evaluations:
+                print(f"   Best Score: {max(e.composite_score for e in iteration_result.evaluations):.3f}")
+            else:
+                print(f"   Best Score: N/A (no ideas generated)")
+                
             print(f"   Should Continue: {assessment['should_continue']}")
             print(f"   Reasoning: {assessment['reasoning'][:150]}...")
             
